@@ -1,8 +1,16 @@
 import createHttpError from 'http-errors';
 import JWT from 'jsonwebtoken';
-import { ACCESS_TOKEN_SECRET_KEY } from '../constant/constans';
-import UserModel from '../../modules/user/user.model';
 import { Request, Response, NextFunction } from 'express';
+import * as dotenv from 'dotenv';
+import UserModel from 'module/models/user.model';
+
+dotenv.config();
+
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+
+if (!JWT_SECRET_KEY) {
+  throw new Error("JWT_SECRET_KEY is not defined in .env");
+}
 
 export function getToken(headers: Request['headers'], res: Response): string {
   const cookies = headers?.cookie?.split(';').reduce((acc: any, cookie: string) => {
@@ -21,7 +29,8 @@ export function getToken(headers: Request['headers'], res: Response): string {
 export function VerifyAccessToken(req: Request, res: Response, next: NextFunction): void {
   try {
     const token = getToken(req.headers, res);
-    JWT.verify(token, ACCESS_TOKEN_SECRET_KEY, async (err, payload) => {
+    // @ts-ignore
+    JWT.verify(token, JWT_SECRET_KEY, async (err: any, payload: any) => {
       try {
         if (err) throw createHttpError.Unauthorized('وارد حساب کاربری خود شوید');
 

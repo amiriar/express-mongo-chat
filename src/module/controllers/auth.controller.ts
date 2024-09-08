@@ -1,18 +1,17 @@
 import { Request, Response, NextFunction, Router } from "express";
-import authService from "../services/auth.service";
 import autoBind from "auto-bind";
 import moment from "jalali-moment";
 import { VerifyAccessToken } from "../../common/middleware/verifyAccessToken";
 import { CookieNames } from "../../common/constant/cookie.enum";
 import { NodeEnv } from "../../common/constant/env.enum";
 import { Authmessage } from "../messages/auth.messages";
-import { loginSchema } from "../schemas/auth.schema";
 import { otpService } from "../services/otp.service";
 import createHttpError from "http-errors";
-import { registerSchema } from "../schemas/auth.schema";
 import jwt from "jsonwebtoken";
+import authService from "../services/auth.service";
+import { loginSchema, registerSchema } from "../schemas/auth.schema";
 
-class AuthController {
+export class AuthController {
   #service: typeof authService;
 
   constructor() {
@@ -78,4 +77,3 @@ class AuthController {
     }
   }
 }
-module.exports = AuthController

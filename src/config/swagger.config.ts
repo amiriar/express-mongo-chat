@@ -3,8 +3,6 @@ import swaggerJsDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
 function swaggerConfig(app: Application): void {
-  console.log(process.cwd()+ "/src/module/swagger");
-  
   const swaggerDocument = swaggerJsDoc({
     swaggerDefinition: {
       openapi: "3.0.1",

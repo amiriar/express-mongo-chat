@@ -1,5 +1,4 @@
 import otpGenerator from "otp-generator";
-import { setTimeout } from "timers/promises";
 
 interface OtpData {
   otp: string;

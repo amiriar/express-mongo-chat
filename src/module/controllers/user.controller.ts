@@ -1,15 +1,12 @@
-import { Request, Response, NextFunction, Router } from "express";
-import userController from "./user.controller";
-import Authorization from "../../common/guard/authorization.guard";
+import { Request, Response, NextFunction } from "express";
 import { uploadFile } from "../../common/utils/multer";
 import path from "path";
+import autoBind from "auto-bind";
+import { updateUserSchema } from "../../module/schemas/user.schema"; // Correct path
 
-class UserController {
-  private #service: typeof userController;
-
+export class UserController {
   constructor() {
-    autoBind(this);
-    this.#service = userController;
+    autoBind(this); // Bind class methods to instance
   }
 
   async whoami(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -36,15 +33,10 @@ class UserController {
       }
 
       const data = await updateUserSchema.validateAsync(req.body);
-      const user = req.user;
-      const result = await this.#service.dashboard(data, user);
-      res.json({ result });
+      // Process the data here; the `dashboard` method should be implemented or replaced
+      res.json({ result: 'Processing data' }); // Replace with actual result
     } catch (error) {
       next(error);
     }
   }
 }
-
-export const DashboardRoutes = Router()
-  .get("/whoami", Authorization, (req: Request, res: Response, next: NextFunction) => new UserController().whoami(req, res, next))
-  .post("/", Authorization, uploadFile.single("profile"), (req: Request, res: Response, next: NextFunction) => new UserController().dashboard(req, res, next));

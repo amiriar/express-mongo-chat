@@ -39,7 +39,7 @@ class AuthService {
     return user;
   }
 
-  async login(phone: string, otp: number) {
+  async login(phone: string, otp: string) {
     const user = await this.#model.findOne({ phoneNumber:phone });
 
     if (!user) {

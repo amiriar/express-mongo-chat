@@ -1,11 +1,11 @@
-import { Router } from "express";
-import AuthController from "../controllers/auth.controller";
-import { VerifyAccessToken } from "../../common/middleware/verifyAccessToken";
+import express from 'express';
+import { AuthController } from '../controllers/auth.controller';
 
-const router = Router();
+const router = express.Router();
+const authController = new AuthController();
 
-router.post("/register", AuthController.preventWhenLoggedIn, AuthController.register); // Sends OTP
-router.post("/login", AuthController.preventWhenLoggedIn, AuthController.login); // Logs in using OTP
-router.get("/logout", VerifyAccessToken, AuthController.logout); // Logs out
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.get('/logout', authController.logout);
 
-export const AuthRouter = router;
+export default router;

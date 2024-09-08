@@ -1,11 +1,11 @@
 import createHttpError from 'http-errors';
-import { PermissionsModel } from '../../modules/OtherModels/';
-import { RoleModel } from '../../modules/OtherModels/role';
 import { Request, Response, NextFunction } from 'express';
 import { PERMISSIONS } from '../constant/constans';
+import { RoleModel } from 'module/models/role.model';
+import { PermissionsModel } from 'module/models/permissions.model';
 
 interface CustomRequest extends Request {
-  user?: any; // You can replace `any` with the specific type for `user`
+  user?: any;
 }
 
 export function checkPermission(requiredPermissions: string[] = []) {
@@ -14,7 +14,7 @@ export function checkPermission(requiredPermissions: string[] = []) {
       const allPermissions = requiredPermissions.flat(2);
       const user = req.user as any;
       if (user) {
-        const role = await RoleModel.findOne({ title: user.role });
+        const role: any = await RoleModel.findOne({ title: user.role });
         const permissions = await PermissionsModel.find({ _id: { $in: role.permissions } });
         const userPermissions = permissions.map(item => item.name);
         const hasPermission = allPermissions.every(permission => userPermissions.includes(permission));
