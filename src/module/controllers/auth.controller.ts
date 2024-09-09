@@ -51,7 +51,7 @@ export class AuthController {
       const accessToken = await this.signTokens(phone);
       return res
         .cookie('accessToken', accessToken, {
-          httpOnly: true,
+          // httpOnly: true,
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Days
           secure: process.env.NODE_ENV === 'production',
           // sameSite: 'strict',
@@ -67,9 +67,6 @@ export class AuthController {
     const user = await this.#model.findOne({ phoneNumber: phone });
   
     if (!user) throw new createHttpError.Unauthorized(Authmessage.PleaseLogin);
-    console.log(process.env.JWT_SECRET_KEY);
-    console.log(process.env.JWT_REFRESH_SECRET_KEY);
-    
   
     const accessToken = jwt.sign({ phone }, process.env.JWT_SECRET_KEY!, {
       expiresIn: '30m',

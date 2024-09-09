@@ -30,13 +30,16 @@ export function getToken(headers: Request['headers']): string {
     acc[key] = value;
     return acc;
   }, {});
-
+  
+  console.log(cookies?.accessToken);
   const token = cookies?.accessToken;
   if (!token) {
     throw createHttpError.Unauthorized(
       'حساب کاربری شناسایی نشد وارد حساب کاربری خود شوید',
     );
   }
+
+  
 
   return token;
 }
@@ -47,10 +50,11 @@ export async function VerifyAccessToken(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  console.log();
+  
   try {
     const token = getToken(req.headers);
 
-    // Verify the JWT token and extract the payload
     const payload = jwt.verify(token, process.env.JWT_SECRET_KEY as string) as {
       phone: string;
     };
@@ -69,12 +73,16 @@ export async function VerifyAccessToken(
     if (!user) {
       throw createHttpError.Unauthorized('حساب کاربری یافت نشد');
     }
-
+    console.log('user');
+    console.log(user);
+    
     req.user = user;
 
     next();
   } catch (error) {
     // Handle errors and pass them to the next middleware
+    console.log(error);
+    
     next(createHttpError.Unauthorized('وارد حساب کاربری خود شوید'));
   }
 }
