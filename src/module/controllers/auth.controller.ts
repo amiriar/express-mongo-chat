@@ -10,13 +10,16 @@ import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import authService from '../services/auth.service';
 import { loginSchema, registerSchema } from '../schemas/auth.schema';
+import UserModel from '../models/user.model';
 
 export class AuthController {
   #service: typeof authService;
+  #model: typeof UserModel;
 
   constructor() {
     autoBind(this);
     this.#service = authService;
+    this.#model = UserModel;
   }
 
   async sendOtp(req: Request, res: Response, next: NextFunction) {
@@ -45,7 +48,7 @@ export class AuthController {
         throw new createHttpError.Unauthorized(Authmessage.InvalidCredentials);
       }
 
-      const accessToken = await this.signToken({ phone });
+      const accessToken = await this.signTokens(phone);
       return res
         .cookie('accessToken', accessToken, {
           httpOnly: true,
@@ -60,8 +63,26 @@ export class AuthController {
     }
   }
 
-  private async signToken(payload: object) {
-    return jwt.sign(payload, process.env.JWT_SECRET_KEY!, { expiresIn: '30m' });
+  async signTokens(phone: string) {
+    const user = await this.#model.findOne({ phoneNumber: phone });
+  
+    if (!user) throw new createHttpError.Unauthorized(Authmessage.PleaseLogin);
+    console.log(process.env.JWT_SECRET_KEY);
+    console.log(process.env.JWT_REFRESH_SECRET_KEY);
+    
+  
+    const accessToken = jwt.sign({ phone }, process.env.JWT_SECRET_KEY!, {
+      expiresIn: '30m',
+    });
+  
+    const refreshToken = jwt.sign({ phone }, process.env.JWT_REFRESH_SECRET_KEY!, {
+      expiresIn: '7d',
+    });
+  
+    user.refreshToken = refreshToken;
+    await user.save();
+  
+    return { accessToken, refreshToken };
   }
 
   async logout(req: Request, res: Response, next: NextFunction): Promise<void> {

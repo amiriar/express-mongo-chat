@@ -18,25 +18,24 @@ class AuthService {
 
   async sendOtp(phone: string) {
     let user = await this.#model.findOne({ phoneNumber: phone });
-  
+
     if (!user) {
       user = await this.#model.create({ phoneNumber: phone });
     }
-  
+
     if (user.otpExpire && user.otpExpire > new Date()) {
       throw new createHttpError.Forbidden(Authmessage.OtpNotExpired);
     }
-  
+
     const expirationTime = new Date();
     expirationTime.setMinutes(expirationTime.getMinutes() + 2); // OTP expiration for 2 minutes
-  
+
     user.otp = this.#OtpService.generateOtp();
     user.otpExpire = expirationTime;
-  
+
     await user.save();
     return user.otp;
   }
-  
 
   generateOtp(): string {
     return Math.floor(10000 + Math.random() * 90000).toString();
@@ -89,10 +88,40 @@ class AuthService {
   //   return 'accessToken';
   // }
 
-  async signToken(payload: object) {
-    return jwt.sign(payload, process.env.JWT_SECRET_KEY!, { expiresIn: '30m' });
+  // async signToken(payload: object) {
+  //   return jwt.sign(payload, process.env.JWT_SECRET_KEY!, { expiresIn: '30m' });
+  // }
+
+  // Signing the refresh token with user id in the signTokens method
+  async signTokens(phone: string) {
+    const user = await this.#model.findOne({ phoneNumber: phone });
+
+    if (!user) throw new createHttpError.Unauthorized(Authmessage.PleaseLogin);
+
+    // Sign the refresh token using user ID
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET_KEY!,
+      {
+        expiresIn: '7d',
+      },
+    );
+
+    const accessToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET_KEY!,
+      {
+        expiresIn: '30m',
+      },
+    );
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    return { accessToken, refreshToken };
   }
 
+  // Verifying the refresh token in the refreshTokens method
   async refreshTokens(refreshToken: string) {
     try {
       // Verify the refresh token and ensure the result is a JwtPayload
@@ -101,20 +130,19 @@ class AuthService {
         process.env.JWT_REFRESH_SECRET_KEY as string,
       ) as jwt.JwtPayload;
 
-      if (!decoded || !decoded.id) {
-        throw new createHttpError.Unauthorized('InvalidRefreshToken');
+      if (!decoded || !decoded.phone) {
+        throw new createHttpError.Unauthorized('InvalidAccessToken');
       }
 
-      // Find the user by the decoded id
-      const user = (await this.#model.findOne({ _id: decoded.id })) as IUser;
+      const user = await this.#model.findOne({ phoneNumber: decoded.phone });
 
       if (!user || user.refreshToken !== refreshToken) {
-        throw new createHttpError.Unauthorized('InvalidRefreshToken');
+        throw new createHttpError.Unauthorized('InvalidUserData');
       }
 
       // Generate a new access token
       const newAccessToken = jwt.sign(
-        { id: user.id },
+        { phone: user.phoneNumber },
         process.env.JWT_SECRET_KEY as string,
         { expiresIn: '30m' },
       );

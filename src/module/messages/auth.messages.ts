@@ -9,4 +9,5 @@ export const Authmessage = Object.freeze({
   OtpExpired: 'کد شما منقضی شده است.',
   OtpNotExpired: 'کد قبلی شما هنوز منقضی نشده است.',
   NoOtp: 'کد ورود وجود ندارد.',
+  PleaseLogin: 'لطفا وارد حساب کاربری خود شوید.',
 });
