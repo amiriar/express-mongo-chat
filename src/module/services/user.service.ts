@@ -1,6 +1,7 @@
-import autoBind from "auto-bind";
-import UserModel from "../models/user.model";
-import createHttpError from "http-errors";
+import autoBind from 'auto-bind';
+import UserModel from '../models/user.model';
+import createHttpError from 'http-errors';
+import { deleteFileInPublic } from '../../common/utils/functions';
 
 class UserService {
   #model;
@@ -10,10 +11,13 @@ class UserService {
     this.#model = UserModel;
   }
 
-  async dashboard(data: any, user: any) {
+  async dashboard(data: any, phone: string, profile: string) {
+    if(profile){
+      deleteFileInPublic(profile)
+    }
     const updateResult = await this.#model.updateOne(
-      { _id: user._id },
-      { $set: data }
+      { phoneNumber: phone },
+      { $set: data },
     );
     if (updateResult.modifiedCount === 0) return new createHttpError[500]();
     return updateResult;

@@ -1,12 +1,16 @@
-import { Request, Response, NextFunction } from "express";
-import { uploadFile } from "../../common/utils/multer";
-import path from "path";
-import autoBind from "auto-bind";
-import { updateUserSchema } from "../../module/schemas/user.schema"; // Correct path
+import { Request, Response, NextFunction } from 'express';
+import { uploadFile } from '../../common/utils/multer';
+import path from 'path';
+import autoBind from 'auto-bind';
+import { updateUserSchema } from '../../module/schemas/user.schema'; // Correct path
+import userService from '../services/user.service';
 
 export class UserController {
+  #service: typeof userService;
+
   constructor() {
     autoBind(this); // Bind class methods to instance
+    this.#service = userService;
   }
 
   async whoami(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -17,7 +21,7 @@ export class UserController {
       } else {
         res.status(401).json({
           statusCode: 401,
-          message: "Not Authorized",
+          message: 'Not Authorized',
           authorized: false,
         });
       }
@@ -26,15 +30,19 @@ export class UserController {
     }
   }
 
-  async dashboard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async dashboard(req: Request, res: Response, next: NextFunction) {
     try {
       if (req.body.fileUploadPath && req.body.filename) {
-        req.body.profile = path.join(req.body.fileUploadPath, req.body.filename).replace(/\\/g, "/");
+        req.body.profile = path
+          .join(req.body.fileUploadPath, req.body.filename)
+          .replace(/\\/g, '/');
       }
 
       const data = await updateUserSchema.validateAsync(req.body);
-      // Process the data here; the `dashboard` method should be implemented or replaced
-      res.json({ result: 'Processing data' }); // Replace with actual result
+
+      const result = await this.#service.dashboard(data, req.user.phoneNumber, req.user.profile);
+
+      return res.json({ success: true });
     } catch (error) {
       next(error);
     }

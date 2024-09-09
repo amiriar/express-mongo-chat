@@ -6,35 +6,28 @@ import moment from 'jalali-moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';
 
-function createRoute(req: Request): string {
-  const [year, month, day] = moment().format('jYYYY/jM/jD').split('/');
-  // const jalaliDate = date.format('jYYYY/jM/jD');
-  // const [year, month, day] = jalaliDate.split('/');
-
+function createRoute(req: Request, fieldName: string): string {
   const directory = path.join(
     __dirname,
     '..',
     '..',
     '..',
-    '..',
-    'sadraNext-main',
-    'main-sadra-next',
     'public',
-    'assets',
     'uploads',
-    year,
-    month,
-    day
+    fieldName
   );
-  req.body.fileUploadPath = path.join('assets', 'uploads', year, month, day);
   fs.mkdirSync(directory, { recursive: true });
+  
+  // Set the upload path in the request object for further use
+  req.body.fileUploadPath = path.join('public', 'uploads', fieldName);
+  
   return directory;
 }
 
 const storage: StorageEngine = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
     if (file?.originalname) {
-      const filePath = createRoute(req);
+      const filePath = createRoute(req, file.fieldname); 
       return cb(null, filePath);
     }
     cb(new Error('Invalid file'), file.originalname);
@@ -42,7 +35,8 @@ const storage: StorageEngine = multer.diskStorage({
   filename: (req: Request, file: Express.Multer.File, cb) => {
     if (file.originalname) {
       const ext = path.extname(file.originalname);
-      const fileName = uuidv4() + ext;
+      const user = req.user
+      const fileName = user.phoneNumber + "+" + uuidv4() + ext;
       req.body.filename = fileName;
       return cb(null, fileName);
     }
@@ -50,6 +44,7 @@ const storage: StorageEngine = multer.diskStorage({
   }
 });
 
+// File filters
 function fileFilter(req: Request, file: Express.Multer.File, cb: FileFilterCallback): void {
   const ext = path.extname(file.originalname).toLowerCase();
   const mimetypes = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -77,9 +72,11 @@ function videoFilter(req: Request, file: Express.Multer.File, cb: FileFilterCall
   return cb(createError.BadRequest('فرمت ارسال شده ویدیو صحیح نمیباشد'));
 }
 
+// Max file sizes
 const pictureMaxSize = 10 * 1000 * 1000; // 10MB
 const videoMaxSize = 50 * 1000 * 1000;   // 50MB
 
+// Exporting different multer configurations for file uploads
 export const uploadFile = multer({ storage, fileFilter, limits: { fileSize: pictureMaxSize } });
 export const uploadResume = multer({ storage, fileFilter: ResumeFilter, limits: { fileSize: pictureMaxSize } });
 export const uploadVideo = multer({ storage, fileFilter: videoFilter, limits: { fileSize: videoMaxSize } });

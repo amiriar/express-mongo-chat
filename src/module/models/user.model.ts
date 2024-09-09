@@ -3,6 +3,8 @@ import mongoose, { Schema, model, Document, ObjectId } from 'mongoose';
 export interface IUser extends Document {
   id: string,
   username: string;
+  firstname: string;
+  lastname: string;
   role?: string;
   lastDateIn?: string;
   email: string;
@@ -17,6 +19,8 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>({
   username: { type: String, required: false },
+  firstname: { type: String, required: false },
+  lastname: { type: String, required: false },
   role: { type: String, default: "USER" },
   lastDateIn: { type: String, required: false },
   email: { type: String, required: false },
@@ -24,8 +28,8 @@ const UserSchema = new Schema<IUser>({
   phoneNumber: { type: String, required: true },
   profile: { type: String, required: false },
   bio: { type: String, required: false },
-  otp: { type: String, required: true },
-  otpExpire: { type: Date, required: true },
+  otp: { type: String, required: false },
+  otpExpire: { type: Date, required: false },
   refreshToken: { type: String },
 }, { timestamps: true });
 
