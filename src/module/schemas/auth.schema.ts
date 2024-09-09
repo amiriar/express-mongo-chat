@@ -7,5 +7,5 @@ export const registerSchema = Joi.object({
 
 export const loginSchema = Joi.object({
     phone: Joi.string().min(11).max(11).error(createError.BadRequest("شماره تلفن وارد شده صحیح نمیباشد.")),
-    otp: Joi.number().min(5).max(5).error(createError.BadRequest("کد وارد شده صحیح نمیباشد")),
+    otp: Joi.string().min(5).max(5).error(createError.BadRequest("کد وارد شده صحیح نمیباشد")),
 });

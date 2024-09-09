@@ -1,35 +1,33 @@
-import otpGenerator from "otp-generator";
-
-interface OtpData {
-  otp: string;
-  expiry: number;
-}
+import createHttpError from 'http-errors';
+import { Authmessage } from '../messages/auth.messages';
+import UserModel from '../models/user.model';
 
 class OtpService {
-  private otpStore: Map<string, OtpData> = new Map();
+  #userModel;
+  constructor() {
+    this.#userModel = UserModel;
+  }
 
-  generateOtp(phone: string): string {
-    const otp = otpGenerator.generate(6, { digits: true });
-    const expiry = Date.now() + 5 * 60 * 1000; // OTP expires in 5 minutes
-    this.otpStore.set(phone, { otp, expiry });
-    return otp;
+  generateOtp(): string {
+    return Math.floor(10000 + Math.random() * 90000).toString();
   }
 
   async verifyOtp(phone: string, otp: string): Promise<boolean> {
-    const otpData = this.otpStore.get(phone);
+    let user = await this.#userModel.findOne({ phoneNumber: phone });
 
-    if (!otpData) return false;
-
-    if (Date.now() > otpData.expiry) {
-      this.otpStore.delete(phone);
-      return false;
+    if (!user) {
+      throw new createHttpError.Unauthorized(Authmessage.NotFound);
     }
 
-    const isValid = otpData.otp === otp;
-    if (isValid) {
-      this.otpStore.delete(phone);
+    if (user.otp && user.otpExpire && new Date() > user.otpExpire) {
+      throw new createHttpError.Unauthorized(Authmessage.OtpExpired);
+    } else {
+      if (user.otp == otp) {
+        return true;
+      } else {
+        return false;
+      }
     }
-    return isValid;
   }
 }
 

@@ -9,7 +9,7 @@
  * @swagger
  * components:
  *   schemas:
- *    register:
+ *    sendOtp:
  *     type: object
  *     required:
  *      - phone
@@ -35,19 +35,19 @@
 /**
  * @swagger
  * 
- * /api/auth/register:
+ * /api/auth/send-otp:
  *  post:
- *   summary: Register a new user and send OTP
+ *   summary: sendOtp a new user and send OTP
  *   tags:
  *      - Auth
  *   requestBody:
  *    content:
  *     application/x-www-form-urlencoded:
  *      schema:
- *       $ref: '#/components/schemas/register'
+ *       $ref: '#/components/schemas/sendOtp'
  *     application/json:
  *      schema:
- *       $ref: '#/components/schemas/register'
+ *       $ref: '#/components/schemas/sendOtp'
  *   responses:
  *    200:
  *     description: OTP sent to the user's phone

@@ -1,5 +1,5 @@
 import { Router } from "express";
-// import { AuthRouter } from "./module/routes/auth.routes";
+import AuthRouter from "./module/routes/auth.routes";
 
 const mainRouter = Router();
 
@@ -7,6 +7,6 @@ const mainRouter = Router();
 // mainRouter.use("/api/admin/panel", VerifyAccessToken, adminRouter);
 
 // Authentication routes
-// mainRouter.use("/api/auth", AuthRouter);
+mainRouter.use("/api/auth", AuthRouter);
 
 export default mainRouter;
