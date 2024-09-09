@@ -6,7 +6,7 @@ import { VerifyAccessToken } from "../../common/middleware/verifyAccessToken";
 const router = Router();
 const userController = new UserController(); // Instantiate UserController
 
-router.get("/whoami", VerifyAccessToken, userController.whoami);
-router.post("/", VerifyAccessToken, uploadFile.single("profile"), userController.dashboard);
+router.get("/whoami", userController.whoami);
+router.post("/", uploadFile.single("profile"), userController.dashboard);
 
 export const DashboardRoutes = router;

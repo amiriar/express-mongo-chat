@@ -1,55 +1,80 @@
 import createHttpError from 'http-errors';
-import JWT from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import * as dotenv from 'dotenv';
-import UserModel from 'module/models/user.model';
+import UserModel from '../../module/models/user.model';
 
 dotenv.config();
 
-const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
-
-if (!JWT_SECRET_KEY) {
-  throw new Error("JWT_SECRET_KEY is not defined in .env");
+// Extend the Request interface to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any; // You can replace 'any' with your UserModel type (e.g., IUser)
+    }
+  }
 }
 
-export function getToken(headers: Request['headers'], res: Response): string {
-  const cookies = headers?.cookie?.split(';').reduce((acc: any, cookie: string) => {
-    const [key, value] = cookie.split('=').map(c => c.trim());
+// Helper function to extract token from cookies
+export function getToken(headers: Request['headers']): string {
+  const cookieHeader = headers?.cookie;
+
+  if (!cookieHeader) {
+    throw createHttpError.Unauthorized(
+      'حساب کاربری شناسایی نشد وارد حساب کاربری خود شوید',
+    );
+  }
+
+  const cookies = cookieHeader.split(';').reduce((acc: any, cookie: string) => {
+    const [key, value] = cookie.split('=').map((c) => c.trim());
     acc[key] = value;
     return acc;
   }, {});
 
   const token = cookies?.accessToken;
   if (!token) {
-    throw createHttpError.Unauthorized('حساب کاربری شناسایی نشد وارد حساب کاربری خود شوید');
+    throw createHttpError.Unauthorized(
+      'حساب کاربری شناسایی نشد وارد حساب کاربری خود شوید',
+    );
   }
+
   return token;
 }
 
-export function VerifyAccessToken(req: Request, res: Response, next: NextFunction): void {
+// VerifyAccessToken middleware for OTP-based auth
+export async function VerifyAccessToken(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const token = getToken(req.headers, res);
-    // @ts-ignore
-    JWT.verify(token, JWT_SECRET_KEY, async (err: any, payload: any) => {
-      try {
-        if (err) throw createHttpError.Unauthorized('وارد حساب کاربری خود شوید');
+    const token = getToken(req.headers);
 
-        const { email, username } = payload as { email: string; username: string };
+    // Verify the JWT token and extract the payload
+    const payload = jwt.verify(token, process.env.JWT_SECRET_KEY as string) as {
+      phone: string;
+    };
 
-        const query: { email?: string; username?: string } = {};
-        if (email) query.email = email;
-        else if (username) query.username = username;
+    const { phone } = payload;
 
-        const user = await UserModel.findOne(query, { password: 0 });
-        if (!user) throw createHttpError.Unauthorized('حساب کاربری یافت نشد');
+    if (!phone) {
+      throw createHttpError.Unauthorized('وارد حساب کاربری خود شوید');
+    }
 
-        req.user = user;
-        return next();
-      } catch (error) {
-        next(error);
-      }
-    });
+    const user = await UserModel.findOne(
+      { phoneNumber: phone },
+      { password: 0, __v: 0, otp: 0, otpExpire: 0, refreshToken: 0 },
+    );
+
+    if (!user) {
+      throw createHttpError.Unauthorized('حساب کاربری یافت نشد');
+    }
+
+    req.user = user;
+
+    next();
   } catch (error) {
-    next(error);
+    // Handle errors and pass them to the next middleware
+    next(createHttpError.Unauthorized('وارد حساب کاربری خود شوید'));
   }
 }

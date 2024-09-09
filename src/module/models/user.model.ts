@@ -10,8 +10,8 @@ export interface IUser extends Document {
   phoneNumber?: string;
   profile?: string;
   bio?: string;
-  otp?: string;
-  otpExpire?: Date;
+  otp?: string | null;
+  otpExpire?: Date | null;
   refreshToken: string, 
 }
 

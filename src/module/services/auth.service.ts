@@ -147,6 +147,11 @@ class AuthService {
         { expiresIn: '30m' },
       );
 
+      user.otp = null;
+      user.otpExpire = null;
+
+      user.save()
+
       return { accessToken: newAccessToken };
     } catch (error) {
       throw new createHttpError.Unauthorized('InvalidRefreshToken');
