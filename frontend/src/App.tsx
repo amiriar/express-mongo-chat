@@ -1,5 +1,5 @@
 import axios from 'axios';
-import './App.css';
+// import './App.css';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
@@ -12,9 +12,6 @@ function App() {
   useEffect(() => {
     axios
       .get('http://localhost:3001/api/dashboard/whoami',{withCredentials: true})
-      .then((res) => {
-        console.log(res);
-      })
       .catch((err) => {
         if (err?.response?.status) navigate('/');
       });

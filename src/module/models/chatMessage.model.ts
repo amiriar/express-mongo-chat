@@ -1,18 +1,20 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, ObjectId, Schema, Types } from 'mongoose';
 
 export interface IChatMessage extends Document {
-  sender: string;
-  recipient: string; // Could be a user ID or room ID
+  sender: ObjectId;
+  recipient: ObjectId; // Could be a user ID or room ID
   content: string;
+  // room: string;
   timestamp: Date;
   date: string;
   status: 'sent' | 'delivered' | 'seen';
 }
 
 const ChatMessageSchema = new Schema<IChatMessage>({
-  sender: { type: String, required: true },  // User ID of the sender
-  recipient: { type: String, required: true },  // User ID or room ID of the recipient
+  sender: { type: Types.ObjectId, required: true },  // User ID of the sender
+  recipient: { type: Types.ObjectId, required: true },  // User ID or room ID of the recipient
   content: { type: String, required: true },
+  // room: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
   date: { type: String, required: false },
   status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'sent' }

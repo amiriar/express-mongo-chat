@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const Login: React.FC = () => {
+const Information: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
@@ -23,7 +23,9 @@ const Login: React.FC = () => {
     axios
       .get('http://localhost:3001/api/dashboard/whoami',{withCredentials: true})
       .then((res) => {
-        navigate("/chats")
+        console.log(res);
+        
+        // navigate("/chats")
       })
   }, []);
 
@@ -48,4 +50,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Information;

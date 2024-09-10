@@ -31,17 +31,14 @@ export function getToken(headers: Request['headers']): string {
     return acc;
   }, {});
   
-  console.log(cookies?.accessToken);
-  const token = cookies?.accessToken;
+  const token: string = cookies?.accessToken;
   if (!token) {
     throw createHttpError.Unauthorized(
       'حساب کاربری شناسایی نشد وارد حساب کاربری خود شوید',
     );
   }
 
-  
-
-  return token;
+  return JSON.parse(decodeURIComponent(token));
 }
 
 // VerifyAccessToken middleware for OTP-based auth
@@ -73,8 +70,6 @@ export async function VerifyAccessToken(
     if (!user) {
       throw createHttpError.Unauthorized('حساب کاربری یافت نشد');
     }
-    console.log('user');
-    console.log(user);
     
     req.user = user;
 

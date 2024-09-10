@@ -14,6 +14,8 @@ export interface IUser extends Document {
   bio?: string;
   otp?: string | null;
   otpExpire?: Date | null;
+  status?: string;
+  lastSeen?: Date;
   refreshToken: string, 
 }
 
@@ -30,6 +32,8 @@ const UserSchema = new Schema<IUser>({
   bio: { type: String, required: false },
   otp: { type: String, required: false },
   otpExpire: { type: Date, required: false },
+  status: { type: String, default: 'offline' },
+  lastSeen: { type: Date },
   refreshToken: { type: String },
 }, { timestamps: true });
 
