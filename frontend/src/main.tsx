@@ -6,6 +6,7 @@ import App from './App.tsx'
 import Register from './components/Register.tsx';
 import Login from './components/Login.tsx';
 import Home from './components/Home.tsx';
+import Settings from './components/Settings.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/chats" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/setting" element={<Settings />} />
         {/* Define other routes here */}
       </Routes>
     </Router>

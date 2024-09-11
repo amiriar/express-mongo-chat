@@ -13,7 +13,7 @@ function App() {
     axios
       .get('http://localhost:3001/api/dashboard/whoami',{withCredentials: true})
       .catch((err) => {
-        if (err?.response?.status) navigate('/');
+        if (err?.response?.status === 401) navigate('/');
       });
   }, []);
 

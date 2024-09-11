@@ -24,9 +24,10 @@ export class UserController {
           username: 1,
           firstname: 1,
           lastname: 1,
+          phoneNumber: 1,
           profile: 1,
           email: 1,
-          bio: 1
+          bio: 1,
         });
         res.json(user);
       } else {
@@ -43,7 +44,7 @@ export class UserController {
 
   async dashboard(req: Request, res: Response, next: NextFunction) {
     try {
-      if (req.body.fileUploadPath && req.body.filename) {
+      if (req?.body?.fileUploadPath && req?.body?.filename) {
         req.body.profile = path
           .join(req.body.fileUploadPath, req.body.filename)
           .replace(/\\/g, "/");
@@ -51,13 +52,13 @@ export class UserController {
 
       const data = await updateUserSchema.validateAsync(req.body);
 
-      const result = await this.#service.dashboard(
+      await this.#service.dashboard(
         data,
         req.user.phoneNumber,
-        req.user.profile
+        data.profile && req.user.profile
       );
 
-      return res.json({ success: true });
+      return res.status(200).json({ success: true });
     } catch (error) {
       next(error);
     }

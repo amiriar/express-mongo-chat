@@ -1,43 +1,43 @@
 import axios from "axios";
-import React, { useEffect, useId, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { io, Socket } from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
 
 interface Message {
-  sender: Sender; =
+  sender: Sender;
   recipient: Recipient;
   content: string;
   room: string;
+  publicName: string;
 }
 
 interface Sender {
   _id: string;
   username: string;
   phone: string;
-  firstname: string;
-  lastname: string;
-  profile: string;
-  email: string;
+  phoneNumber?: string;
 }
 
 interface Recipient {
   _id: string;
   username: string;
-  profile: string;
   phone: string;
 }
 
 const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
+
   const [message, setMessage] = useState<string>("");
+  const [publicName, setPublicName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<typeof Socket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<
     Array<{ username: string; profile: string; userId: string }>
   >([]);
+  // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
   const [rooms, setRooms] = useState<Array<string>>([
     "Public Room 1",
@@ -65,34 +65,42 @@ const Home: React.FC = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Initialize WebSocket connection once
+    if (!sender) return;
+
     const socketInstance = io("http://localhost:3001", {
-      query: { userId: sender?._id },
+      query: { userId: sender._id },
     });
+
     setSocket(socketInstance);
 
     socketInstance.on("connect", () => {
       console.log("Connected to WebSocket server");
     });
 
-    // Clean up WebSocket connection when component unmounts
     return () => {
       socketInstance.disconnect();
     };
-  }, [sender]);
+  }, [sender]); // Ensure it only runs when `sender` is set
 
   const joinRoom = (roomName: string) => {
-    socket && socket.emit("joinRoom", roomName);
+    setRecipient(null); // Clear recipient for public rooms
+    setShownRoomName(roomName); // Display the room name
     setRoom(roomName);
+    setPublicName(roomName)
+
+    if (socket) {
+      socket.emit("joinRoom", roomName); // Emit join room event
+    }
   };
 
   const pvHandler = (user: any) => {
     setShownRoomName("");
     setRecipient(user);
-    const roomName = `${user.id}-${user.userId}`; // Use userId for unique room
+    const roomName = `${sender?._id}-${user.userId}`; // Use userId for unique room
+
     setRoom(roomName);
     setShownRoomName(
-      sender?.id == user.userId
+      sender?._id == user.userId
         ? `Saved Messages (${user.username})`
         : user.username
           ? user.username
@@ -102,35 +110,36 @@ const Home: React.FC = () => {
   };
 
   const sendMessage = () => {
-    if (socket && recipient && room) {
-      const messageData: Message = {
+    if (socket && room) {
+      console.log(sender);
+      console.log(recipient);
+
+      const messageData: Partial<Message> = {
         sender: {
-          _id: sender?._id,
-          username: sender?.username,
-          profile: sender?.profile,
-          phone: sender?.phone,
-        },
-        recipient: {
-          _id: recipient._id,
-          username: recipient.username,
-          profile: recipient.profile,
-          phone: recipient.phone,
+          _id: sender?._id ?? "",
+          username: sender?.username ?? "Guest",
+          phone: sender?.phoneNumber ?? "N/A",
         },
         content: message,
         room: room,
+        publicName: publicName,
       };
 
-      // Emit the message to the server
-      console.log("Sending message:", messageData);
+      // Only include the recipient if it's a private message (recipient exists)
+      if (recipient) {
+        messageData.recipient = {
+          // @ts-ignore
+          _id: recipient.userId,
+          username: recipient.username,
+          phone: recipient.phone,
+        };
+      }
+
       socket.emit("sendMessage", messageData);
-
-      // Update messages locally
-      setMessages((prevMessages) => [...prevMessages, messageData]);
-
-      // Clear the input
+      setMessages((prevMessages) => [...prevMessages, messageData as Message]);
       setMessage("");
     } else {
-      alert("Please choose someone to send the message to.");
+      alert("Please select a room or user to send the message.");
     }
   };
 
@@ -139,26 +148,35 @@ const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    if (room && socket) {
+    if (room) {
       setMessage("");
 
+      // @ts-ignore
+      const formattedRoom = recipient?.userId ? `${sender?._id}-${recipient?.userId}` : publicName;
+      
+      socket?.emit("getHistory", formattedRoom);
+
       const handleSendHistory = (data: object) => {
-        console.log("Received history:", data);
-        setMessages(data as Message[]); // Assuming `data` is the chat history
+        setMessages(data as Message[]);
       };
 
-      // Listen for chat history from the server
-      socket.on("sendHistory", handleSendHistory);
+      socket?.on("sendHistory", handleSendHistory);
 
-      // Request chat history when a new room is joined
-      socket.emit("getHistory", room);
-
-      // Clean up to prevent multiple listeners
       return () => {
-        socket.off("sendHistory", handleSendHistory);
+        socket?.off("sendHistory", handleSendHistory);
       };
     }
-  }, [room, socket]);
+  }, [room, socket, sender?._id, recipient?._id]);
+
+  useEffect(() => {
+    socket?.on("onlineUsers", (users: any) => {
+      setOnlineUsers(users);
+    });
+
+    return () => {
+      socket?.off("onlineUsers");
+    };
+  }, [socket]);
 
   return (
     <div className="chat-container">
@@ -166,14 +184,18 @@ const Home: React.FC = () => {
         <h2>Chat Rooms</h2>
 
         {rooms.map((room) => (
-          <button onClick={() => joinRoom(room)} className="room-btn">
+          <button
+            key={room}
+            onClick={() => joinRoom(room)}
+            className="room-btn"
+          >
             Join {room}
           </button>
         ))}
 
         <h2 style={{ marginTop: "20px" }}>Users</h2>
         <ul className="users-list">
-          {onlineUsers.map((user) => (
+          {onlineUsers?.map((user) => (
             <li
               key={user.userId}
               onClick={() => pvHandler(user)}
