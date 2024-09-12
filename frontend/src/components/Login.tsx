@@ -1,49 +1,71 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import "./Login.css"; // Include the CSS file for styling
 
 const Login: React.FC = () => {
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [message, setMessage] = useState('');
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+
   const verifyOtp = async () => {
-    try {
-      await axios.post('http://localhost:3001/api/auth/login', { phone, otp }, {withCredentials: true}).then((res)=> console.log(res));
-      setMessage('Login successful.');
-      // Redirect to chat or dashboard here
-      // navigate("/chats")
-    } catch (error) {
-      setMessage('Invalid OTP or login failed.');
+    if (!phone || !otp) {
+      setMessage("Both phone number and OTP are required.");
+      setError(true);
+      return;
     }
+
+    setIsLoading(true);
+    try {
+      await axios.post("http://localhost:3001/api/auth/login", { phone, otp }, { withCredentials: true });
+      setMessage("Login successful.");
+      setError(false);
+      navigate("/chats"); // Navigate to the chat dashboard
+    } catch (error) {
+      setMessage("Invalid OTP or login failed.");
+      setError(true);
+    }
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    axios
-      .get('http://localhost:3001/api/dashboard/whoami',{withCredentials: true})
-      .then((res) => {
-        navigate("/chats")
-      })
-  }, []);
-
+    axios.get("http://localhost:3001/api/dashboard/whoami", { withCredentials: true }).then(() => {
+      navigate("/chats");
+    });
+  }, [navigate]);
 
   return (
-    <div>
-      <input
-        type="text"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Enter your phone number"
-      />
-      <input
-        type="text"
-        value={otp}
-        onChange={(e) => setOtp(e.target.value)}
-        placeholder="Enter the OTP"
-      />
-      <button onClick={verifyOtp}>Verify OTP</button>
-      {message && <p>{message}</p>}
+    <div className="login-container">
+      <div className="login-form">
+        <h2>Login</h2>
+        <p>Please enter your phone number and OTP to log in.</p>
+        <input
+          type="text"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Enter your phone number"
+          className={`input-field ${error && !phone ? "error" : ""}`}
+        />
+        <input
+          type="text"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+          placeholder="Enter the OTP"
+          className={`input-field ${error && !otp ? "error" : ""}`}
+        />
+        <button onClick={verifyOtp} disabled={isLoading}>
+          {isLoading ? "Verifying..." : "Verify OTP"}
+        </button>
+        {message && (
+          <p className={`message ${error ? "error-message" : "success-message"}`}>
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

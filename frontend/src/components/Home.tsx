@@ -4,13 +4,16 @@ import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
+import { TbLogout2 } from "react-icons/tb";
 
 interface Message {
+  _id?: string;
   sender: Sender;
   recipient: Recipient;
   content: string;
   room: string;
   publicName: string;
+  timestamp?: Date;
 }
 
 interface Sender {
@@ -45,6 +48,10 @@ const Home: React.FC = () => {
   ]);
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("");
+  const [offlineUsers, setOfflineUsers] = useState([]);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+    null
+  );
 
   const navigate = useNavigate();
 
@@ -86,7 +93,7 @@ const Home: React.FC = () => {
     setRecipient(null); // Clear recipient for public rooms
     setShownRoomName(roomName); // Display the room name
     setRoom(roomName);
-    setPublicName(roomName)
+    setPublicName(roomName);
 
     if (socket) {
       socket.emit("joinRoom", roomName); // Emit join room event
@@ -109,11 +116,9 @@ const Home: React.FC = () => {
     socket?.emit("joinRoom", roomName);
   };
 
-  const sendMessage = () => {
+  const sendMessage = (e: any) => {
+    e.preventDefault();
     if (socket && room) {
-      console.log(sender);
-      console.log(recipient);
-
       const messageData: Partial<Message> = {
         sender: {
           _id: sender?._id ?? "",
@@ -147,36 +152,110 @@ const Home: React.FC = () => {
     navigate("/setting");
   };
 
+  const logoutHandler = () => {
+    axios
+      .get("http://localhost:3001/api/auth/logout", {
+        withCredentials: true,
+      })
+      .then(() => {
+        navigate("/");
+      })
+      .catch((err) => {
+        if (err?.response?.status === 401) {
+          navigate("/register");
+        }
+      });
+  };
+
+  // useEffect(() => {
+  //   if (room) {
+  //     setMessage("");
+
+  //     // @ts-ignore
+  //     const formattedRoom = recipient?.userId ? `${sender?._id}-${recipient?.userId}` : publicName;
+
+  //     socket?.emit("getHistory", formattedRoom);
+
+  //     const handleSendHistory = (data: object) => {
+  //       setMessages(data as Message[]);
+  //     };
+
+  //     socket?.on("sendHistory", handleSendHistory);
+
+  //     return () => {
+  //       socket?.off("sendHistory", handleSendHistory);
+  //     };
+  //   }
+  // }, [room, socket, sender?._id, recipient?._id]);
+
   useEffect(() => {
     if (room) {
       setMessage("");
 
       // @ts-ignore
-      const formattedRoom = recipient?.userId ? `${sender?._id}-${recipient?.userId}` : publicName;
-      
-      socket?.emit("getHistory", formattedRoom);
+      const formattedRoom = recipient?.userId
+        ? // @ts-ignore
+          `${sender?._id}-${recipient?.userId}`
+        : publicName;
 
-      const handleSendHistory = (data: object) => {
-        setMessages(data as Message[]);
+      // Function to get message history
+      const getHistory = () => {
+        socket?.emit("getHistory", formattedRoom);
+
+        const handleSendHistory = (data: object) => {
+          setMessages(data as Message[]);
+        };
+
+        socket?.on("sendHistory", handleSendHistory);
+
+        // Clean up: Remove the listener for "sendHistory" to avoid duplicate listeners
+        return () => {
+          socket?.off("sendHistory", handleSendHistory);
+        };
       };
 
-      socket?.on("sendHistory", handleSendHistory);
+      // Call getHistory immediately and set up an interval
+      getHistory();
+      const interval = setInterval(getHistory, 1000);
 
-      return () => {
-        socket?.off("sendHistory", handleSendHistory);
-      };
+      // Clean up: clear the interval when the component unmounts or room changes
+      return () => clearInterval(interval);
     }
-  }, [room, socket, sender?._id, recipient?._id]);
+  }, [room, socket, sender?._id, recipient?._id, publicName]);
 
   useEffect(() => {
     socket?.on("onlineUsers", (users: any) => {
       setOnlineUsers(users);
     });
 
+    socket?.on("offlineUsers", (users: any) => {
+      setOfflineUsers(users);
+    });
+
     return () => {
       socket?.off("onlineUsers");
+      socket?.off("offlineUsers");
     };
   }, [socket]);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await axios.delete(`http://localhost:3001/api/messages/${messageId}`);
+      console.log(`Message with ID ${messageId} deleted.`);
+      // Refresh messages or remove the deleted message from the state
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+    }
+  };
+
+  const handleCopyMessage = (message: string) => {
+    navigator.clipboard.writeText(message);
+    console.log("Message copied to clipboard:", message);
+  };
+
+  const toggleOptions = (messageId: string) => {
+    setSelectedMessageId(selectedMessageId === messageId ? null : messageId);
+  };
 
   return (
     <div className="chat-container">
@@ -209,6 +288,27 @@ const Home: React.FC = () => {
               <span>{user.username} (Online)</span>
             </li>
           ))}
+
+          <div className="offline-users">
+            <h3>Offline Users</h3>
+            <ul className="users-list">
+              {offlineUsers.map((user: any) => (
+                <li
+                  key={user.userId}
+                  onClick={() => pvHandler(user)}
+                  style={{ cursor: "pointer", padding: "2px" }}
+                >
+                  <img
+                    src={`http://localhost:3001/${user.profile}`}
+                    alt="Profile"
+                    className="avatar"
+                  />
+                  <span>{user.username} (Offline)</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {Object.entries(lastSeen).map(([userId, timestamp]) => (
             <li key={userId}>
               {userId} (Last seen: {new Date(timestamp).toLocaleString()})
@@ -225,31 +325,90 @@ const Home: React.FC = () => {
             {shownRoomName ? shownRoomName : room ? room : "No room joined"}
           </h2>
           <div
-            style={{ padding: "5px", cursor: "pointer" }}
-            onClick={settingHandler}
+            style={{
+              padding: "5px",
+              cursor: "pointer",
+              display: "flex",
+              gap: "15px",
+            }}
           >
-            <IoMdSettings size={30} />
+            <div onClick={logoutHandler}>
+              <TbLogout2 size={30} />
+            </div>
+            <div onClick={settingHandler}>
+              <IoMdSettings size={30} />
+            </div>
           </div>
         </div>
+
         <div className="messages">
-          {messages.map((msg, index) => (
-            <div key={index} className="message">
-              <strong>{msg?.sender?.username}:</strong> {msg.content}
+          {messages.map((msg: Message) => (
+            <div key={msg._id} className="message-container">
+              <div
+                className={`message ${msg.sender._id === sender?._id ? "sent" : "received"}`}
+              >
+                <strong>{msg.sender.username}:</strong> {msg.content}
+                {/* <span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span> */}
+                <span className="timestamp">
+                  {msg.timestamp
+                    ? new Date(msg.timestamp).toLocaleTimeString()
+                    : "Unknown time"}
+                </span>
+                {/* Options dropdown */}
+                <div className="message-options">
+                  <button
+                    style={{
+                      color: "red",
+                      width: "20px",
+                      position: "absolute",
+                      top: "-5px",
+                      right: msg.sender._id === sender?._id ? "100%" : "-35px",
+                    }}
+                    onClick={() => toggleOptions(msg._id ?? "")}
+                  >
+                    ⋮
+                  </button>
+                  {selectedMessageId === msg._id && (
+                    <div
+                      className="options-dropdown"
+                      style={{
+                        position: "absolute",
+                        top: "35px",
+                        right:
+                          msg.sender._id === sender?._id ? "100%" : "-35px",
+                      }}
+                    >
+                      <button onClick={() => handleCopyMessage(msg.content)}>
+                        Copy
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMessage(msg._id ?? "")}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="message-input">
+        <form className="message-input">
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message"
             className="input-field"
           />
-          <button onClick={sendMessage} className="send-btn">
+          <button
+            type="submit"
+            onClick={(e) => sendMessage(e)}
+            className="send-btn"
+          >
             Send
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
