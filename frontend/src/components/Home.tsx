@@ -1,10 +1,11 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
 import { TbLogout2 } from "react-icons/tb";
+import { CiClock2 } from "react-icons/ci";
 
 interface Message {
   _id?: string;
@@ -14,19 +15,21 @@ interface Message {
   room: string;
   publicName: string;
   timestamp?: Date;
+  voiceUrl?: string;
 }
 
 interface Sender {
   _id: string;
-  username: string;
-  phone: string;
-  phoneNumber?: string;
+  username?: string;
+  phone?: string;
+  profile?: string;
 }
 
 interface Recipient {
   _id: string;
-  username: string;
-  phone: string;
+  username?: string;
+  phone?: string;
+  profile?: string;
 }
 
 const Home: React.FC = () => {
@@ -52,6 +55,8 @@ const Home: React.FC = () => {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
   );
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const navigate = useNavigate();
 
@@ -103,11 +108,12 @@ const Home: React.FC = () => {
   const pvHandler = (user: any) => {
     setShownRoomName("");
     setRecipient(user);
-    const roomName = `${sender?._id}-${user.userId}`; // Use userId for unique room
+    const roomName = `${sender?._id}-${user._id}`;
 
     setRoom(roomName);
+
     setShownRoomName(
-      sender?._id == user.userId
+      sender?._id == user._id
         ? `Saved Messages (${user.username})`
         : user.username
           ? user.username
@@ -118,12 +124,15 @@ const Home: React.FC = () => {
 
   const sendMessage = (e: any) => {
     e.preventDefault();
+    console.log(sender);
+    console.log(recipient);
+
+    if (!message.trim()) return alert("Please write something down.");
+
     if (socket && room) {
       const messageData: Partial<Message> = {
         sender: {
           _id: sender?._id ?? "",
-          username: sender?.username ?? "Guest",
-          phone: sender?.phoneNumber ?? "N/A",
         },
         content: message,
         room: room,
@@ -133,10 +142,7 @@ const Home: React.FC = () => {
       // Only include the recipient if it's a private message (recipient exists)
       if (recipient) {
         messageData.recipient = {
-          // @ts-ignore
-          _id: recipient.userId,
-          username: recipient.username,
-          phone: recipient.phone,
+          _id: recipient._id,
         };
       }
 
@@ -167,35 +173,12 @@ const Home: React.FC = () => {
       });
   };
 
-  // useEffect(() => {
-  //   if (room) {
-  //     setMessage("");
-
-  //     // @ts-ignore
-  //     const formattedRoom = recipient?.userId ? `${sender?._id}-${recipient?.userId}` : publicName;
-
-  //     socket?.emit("getHistory", formattedRoom);
-
-  //     const handleSendHistory = (data: object) => {
-  //       setMessages(data as Message[]);
-  //     };
-
-  //     socket?.on("sendHistory", handleSendHistory);
-
-  //     return () => {
-  //       socket?.off("sendHistory", handleSendHistory);
-  //     };
-  //   }
-  // }, [room, socket, sender?._id, recipient?._id]);
-
   useEffect(() => {
     if (room) {
       setMessage("");
 
-      // @ts-ignore
-      const formattedRoom = recipient?.userId
-        ? // @ts-ignore
-          `${sender?._id}-${recipient?.userId}`
+      const formattedRoom = recipient?._id
+        ? `${sender?._id}-${recipient?._id}`
         : publicName;
 
       // Function to get message history
@@ -203,6 +186,8 @@ const Home: React.FC = () => {
         socket?.emit("getHistory", formattedRoom);
 
         const handleSendHistory = (data: object) => {
+          console.log(data);
+
           setMessages(data as Message[]);
         };
 
@@ -224,19 +209,103 @@ const Home: React.FC = () => {
   }, [room, socket, sender?._id, recipient?._id, publicName]);
 
   useEffect(() => {
-    socket?.on("onlineUsers", (users: any) => {
+    if (!socket) return;
+
+    socket.on("onlineUsers", (users: any) => {
       setOnlineUsers(users);
     });
 
-    socket?.on("offlineUsers", (users: any) => {
+    socket.on("offlineUsers", (users: any) => {
       setOfflineUsers(users);
     });
 
     return () => {
-      socket?.off("onlineUsers");
-      socket?.off("offlineUsers");
+      socket.off("onlineUsers");
+      socket.off("offlineUsers");
+      socket.off("voice-message"); // Clean up listener when component unmounts
     };
   }, [socket]);
+
+  const recordedChunksRef = useRef<Blob[]>([]);
+
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    recordedChunksRef.current = []; // Clear previous chunks
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          console.log("Data available event triggered", event.data);
+          if (event.data.size > 0) {
+            recordedChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.start();
+      })
+      .catch((err) => console.error("Error accessing microphone:", err));
+  };
+
+  const handleStopRecording = () => {
+    setIsRecording(false);
+
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+
+      mediaRecorderRef.current.onstop = async () => {
+        console.log("Recording stopped");
+        console.log("Recorded chunks:", recordedChunksRef.current);
+
+        const blob = new Blob(recordedChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        console.log("Blob details:", blob);
+
+        if (blob.size === 0) {
+          console.error("Blob is empty. Check recordedChunks.");
+          return;
+        }
+
+        // Convert blob to FormData to send it as a file
+        const formData = new FormData();
+        formData.append("voiceMessage", blob, "voice-message.webm");
+        console.log(recipient);
+
+        const senderJson = JSON.stringify(sender?._id);
+        const recipientJson = JSON.stringify(recipient && recipient?._id);
+        const roomJson = JSON.stringify(room);
+
+        formData.append("sender", senderJson);
+        if (recipient) formData.append("recipient", recipientJson);
+        formData.append("room", roomJson);
+
+        try {
+          const response = await axios.post(
+            `http://localhost:3001/api/messages/upload-voice`,
+            formData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+              withCredentials: true,
+            }
+          );
+
+          console.log("Server response:", response);
+
+          const mp3Url = response.data.filePath;
+          socket?.emit("voice-message", { mp3Url, room });
+        } catch (error) {
+          console.error("Error uploading voice message:", error);
+        }
+      };
+    }
+  };
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
@@ -274,9 +343,9 @@ const Home: React.FC = () => {
 
         <h2 style={{ marginTop: "20px" }}>Users</h2>
         <ul className="users-list">
-          {onlineUsers?.map((user) => (
+          {onlineUsers?.map((user: any) => (
             <li
-              key={user.userId}
+              key={user._id}
               onClick={() => pvHandler(user)}
               style={{ cursor: "pointer", padding: "2px" }}
             >
@@ -294,7 +363,7 @@ const Home: React.FC = () => {
             <ul className="users-list">
               {offlineUsers.map((user: any) => (
                 <li
-                  key={user.userId}
+                  key={user._id}
                   onClick={() => pvHandler(user)}
                   style={{ cursor: "pointer", padding: "2px" }}
                 >
@@ -348,13 +417,13 @@ const Home: React.FC = () => {
                 className={`message ${msg.sender._id === sender?._id ? "sent" : "received"}`}
               >
                 <strong>{msg.sender.username}:</strong> {msg.content}
-                {/* <span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span> */}
                 <span className="timestamp">
-                  {msg.timestamp
-                    ? new Date(msg.timestamp).toLocaleTimeString()
-                    : "Unknown time"}
+                  {msg.timestamp ? (
+                    new Date(msg.timestamp).toLocaleTimeString()
+                  ) : (
+                    <CiClock2 size={10} />
+                  )}
                 </span>
-                {/* Options dropdown */}
                 <div className="message-options">
                   <button
                     style={{
@@ -390,25 +459,51 @@ const Home: React.FC = () => {
                   )}
                 </div>
               </div>
+              {msg.voiceUrl && (
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent:
+                      msg.sender._id === sender?._id ? "right" : "left",
+                  }}
+                >
+                  <audio className="audio-player" controls>
+                    <source
+                      src={`http://localhost:3001/${msg.voiceUrl}`}
+                      type="audio/mp3"
+                    />
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        <form className="message-input">
+        <form className="message-input" onSubmit={sendMessage}>
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message"
+            placeholder="Type your message..."
             className="input-field"
           />
-          <button
-            type="submit"
-            onClick={(e) => sendMessage(e)}
-            className="send-btn"
-          >
+          <button type="submit" className="send-btn">
             Send
           </button>
         </form>
+
+        <div className="voice-message-controls">
+          {isRecording ? (
+            <button onClick={handleStopRecording} className="stop-btn">
+              Stop Recording
+            </button>
+          ) : (
+            <button onClick={handleStartRecording} className="record-btn">
+              Record Voice Message
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
