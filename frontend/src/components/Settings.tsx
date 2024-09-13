@@ -48,8 +48,6 @@ function Settings() {
         setProfileName(response.data.profile);
         setEmail(response.data.email);
         setBio(response.data.bio);
-        console.log(response.data);
-        
       })
       .catch((err) => {
         if (err?.response?.status === 401) navigate("/");

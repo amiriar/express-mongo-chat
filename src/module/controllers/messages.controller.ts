@@ -44,9 +44,6 @@ export class MessagesController {
           fs.unlinkSync(webmFilePath);
 
           const { sender, recipient, room } = req.body;
-          console.log(req.body);
-          
-
           const senderParsed = JSON.parse(sender);
           const recipientParsed = recipient ? JSON.parse(recipient) : null;
           const roomParsed = JSON.parse(room);

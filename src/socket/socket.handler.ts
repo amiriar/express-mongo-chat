@@ -115,9 +115,6 @@ export const handleSocketConnections = (io: Server) => {
             .populate("recipient", "username profile phoneNumber") // Populate recipient details
             .sort({ timestamp: 1 });
         }
-        console.log(history);
-        
-    
         // Emit the chat history back to the client with populated user details
         socket.emit("sendHistory", history);
       } catch (error) {

@@ -127,9 +127,6 @@ const Home: React.FC = () => {
 
   const sendMessage = (e: any) => {
     e.preventDefault();
-    console.log(sender);
-    console.log(recipient);
-
     if (!message.trim()) return alert("Please write something down.");
 
     if (socket && room) {
@@ -189,8 +186,6 @@ const Home: React.FC = () => {
         socket?.emit("getHistory", formattedRoom);
 
         const handleSendHistory = (data: object) => {
-          console.log(data);
-
           setMessages(data as Message[]);
         };
 
@@ -260,14 +255,9 @@ const Home: React.FC = () => {
       mediaRecorderRef.current.stop();
 
       mediaRecorderRef.current.onstop = async () => {
-        console.log("Recording stopped");
-        console.log("Recorded chunks:", recordedChunksRef.current);
-
         const blob = new Blob(recordedChunksRef.current, {
           type: "audio/webm",
         });
-
-        console.log("Blob details:", blob);
 
         if (blob.size === 0) {
           console.error("Blob is empty. Check recordedChunks.");
