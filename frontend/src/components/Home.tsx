@@ -6,6 +6,8 @@ import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
 import { TbLogout2 } from "react-icons/tb";
 import { CiClock2 } from "react-icons/ci";
+import { FaMicrophone, FaStop, FaPaperPlane } from "react-icons/fa";
+import { FaComments } from "react-icons/fa";
 
 interface Message {
   _id?: string;
@@ -36,7 +38,7 @@ const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
 
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string>(""); // message input
   const [publicName, setPublicName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<typeof Socket | null>(null);
@@ -57,6 +59,7 @@ const Home: React.FC = () => {
   );
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
 
@@ -326,6 +329,15 @@ const Home: React.FC = () => {
     setSelectedMessageId(selectedMessageId === messageId ? null : messageId);
   };
 
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom whenever messages change or component mounts
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   return (
     <div className="chat-container">
       <div className="sidebar">
@@ -410,7 +422,7 @@ const Home: React.FC = () => {
           </div>
         </div>
 
-        <div className="messages">
+        {/* <div className="messages">
           {messages.map((msg: Message) => (
             <div key={msg._id} className="message-container">
               <div
@@ -479,34 +491,352 @@ const Home: React.FC = () => {
               )}
             </div>
           ))}
+        </div> */}
+
+        {/* <div className="messages">
+          {room ? (
+            messages.map((msg: Message) => (
+              <div key={msg._id} className="message-container">
+                <div
+                  className={`message ${
+                    msg.sender._id === sender?._id ? "sent" : "received"
+                  }`}
+                >
+                  <strong>{msg.sender.username}:</strong> {msg.content}
+                  <span className="timestamp">
+                    {msg.timestamp ? (
+                      new Date(msg.timestamp).toLocaleTimeString()
+                    ) : (
+                      <CiClock2 size={10} />
+                    )}
+                  </span>
+                  <div className="message-options">
+                    <button
+                      style={{
+                        color: "red",
+                        width: "20px",
+                        position: "absolute",
+                        top: "-5px",
+                        right:
+                          msg.sender._id === sender?._id ? "100%" : "-35px",
+                      }}
+                      onClick={() => toggleOptions(msg._id ?? "")}
+                    >
+                      ⋮
+                    </button>
+                    {selectedMessageId === msg._id && (
+                      <div
+                        className="options-dropdown"
+                        style={{
+                          position: "absolute",
+                          top: "35px",
+                          right:
+                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                        }}
+                      >
+                        <button onClick={() => handleCopyMessage(msg.content)}>
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id ?? "")}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {msg.voiceUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg.sender._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    <audio className="audio-player" controls>
+                      <source
+                        src={`http://localhost:3001/${msg.voiceUrl}`}
+                        type="audio/mp3"
+                      />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="no-room-message" style={styles.noRoomMessage}>
+              <FaComments size={40} style={{ marginBottom: "10px" }} />
+              <p style={{ fontSize: "18px" }}>Join a room to start chatting!</p>
+            </div>
+          )}
         </div>
 
-        <form className="message-input" onSubmit={sendMessage}>
+        <form
+          className="message-input"
+          onSubmit={sendMessage}
+          style={styles.form}
+        >
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message..."
             className="input-field"
+            style={styles.inputField}
+            disabled={room ? false : true}
           />
-          <button type="submit" className="send-btn">
-            Send
+          <div
+            className="voice-message-controls"
+            style={styles.voiceMessageControls}
+          >
+            {isRecording ? (
+              <FaStop onClick={handleStopRecording} style={styles.icon} />
+            ) : (
+              <FaMicrophone
+                onClick={handleStartRecording}
+                style={styles.icon}
+              />
+            )}
+          </div>
+          <button type="submit" className="send-btn" style={styles.sendBtn}>
+            <FaPaperPlane />
+          </button>
+        </form> */}
+
+        <div className="messages">
+          {room ? (
+            messages.map((msg: Message) => (
+              <div key={msg._id} className="message-container">
+                <div
+                  className={`message ${
+                    msg.sender._id === sender?._id ? "sent" : "received"
+                  }`}
+                >
+                  <strong>{msg.sender.username}:</strong> {msg.content}
+                  <span className="timestamp">
+                    {msg.timestamp ? (
+                      new Date(msg.timestamp).toLocaleTimeString()
+                    ) : (
+                      <CiClock2 size={10} />
+                    )}
+                  </span>
+                  <div className="message-options">
+                    <button
+                      style={{
+                        color: "red",
+                        width: "20px",
+                        position: "absolute",
+                        top: "-5px",
+                        right:
+                          msg.sender._id === sender?._id ? "100%" : "-35px",
+                      }}
+                      onClick={() => toggleOptions(msg._id ?? "")}
+                    >
+                      ⋮
+                    </button>
+                    {selectedMessageId === msg._id && (
+                      <div
+                        className="options-dropdown"
+                        style={{
+                          position: "absolute",
+                          top: "35px",
+                          right:
+                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                        }}
+                      >
+                        <button onClick={() => handleCopyMessage(msg.content)}>
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id ?? "")}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {msg.voiceUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg.sender._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    <audio className="audio-player" controls>
+                      <source
+                        src={`http://localhost:3001/${msg.voiceUrl}`}
+                        type="audio/mp3"
+                      />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="no-room-message" style={styles.noRoomMessage}>
+              <FaComments size={40} style={{ marginBottom: "10px" }} />
+              <p style={{ fontSize: "18px" }}>Join a room to start chatting!</p>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Message input and controls */}
+        {/* <form
+          className="message-input"
+          onSubmit={sendMessage}
+          style={styles.form}
+        >
+          <input
+            value={room ? "" : "Join a room to send a message!"}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="input-field"
+            style={styles.inputField}
+            disabled={!room} // Disable input if no room is joined
+          />
+          <div
+            className="voice-message-controls"
+            style={styles.voiceMessageControls}
+          >
+            {isRecording ? (
+              <FaMicrophone onClick={handleStopRecording} style={styles.icon} />
+            ) : (
+              <FaMicrophone
+                onClick={handleStartRecording}
+                style={styles.icon}
+              />
+            )}
+          </div>
+          <button
+            type="submit"
+            className="send-btn"
+            style={styles.sendBtn}
+            disabled={!room} // Disable button if no room is joined
+          >
+            <FaPaperPlane />
+          </button>
+        </form> */}
+
+        <form
+          className="message-input"
+          onSubmit={sendMessage}
+          style={styles.form}
+        >
+          <input
+            value={room ? message : ""} // Only allow input if room is joined
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={
+              room ? "Type your message..." : "Join a room to send a message!"
+            }
+            className="input-field"
+            style={styles.inputField}
+            disabled={!room} // Disable input if no room is joined
+          />
+          <div
+            className="voice-message-controls"
+            style={styles.voiceMessageControls}
+          >
+            {!isRecording ? (
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  padding: "5px",
+                  cursor: "pointer",
+                  display: room ? "flex" : "none"
+                }}
+                onClick={handleStartRecording}
+              >
+                <FaMicrophone
+                  style={styles.icon}
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  padding: "5px",
+                  cursor: "pointer",
+                  display: room ? "flex" : "none"
+                }}
+                onClick={handleStopRecording}
+              >
+                <FaStop
+                  style={styles.icon}
+                />
+              </div>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="send-btn"
+            style={styles.sendBtn}
+            disabled={!room} // Disable button if no room is joined
+          >
+            <FaPaperPlane />
           </button>
         </form>
-
-        <div className="voice-message-controls">
-          {isRecording ? (
-            <button onClick={handleStopRecording} className="stop-btn">
-              Stop Recording
-            </button>
-          ) : (
-            <button onClick={handleStartRecording} className="record-btn">
-              Record Voice Message
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
+};
+
+const styles = {
+  noRoomMessage: {
+    display: "flex" as const,
+    flexDirection: "column" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    height: "100%",
+    textAlign: "center" as const,
+    color: "#888",
+  },
+  form: {
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    padding: "10px",
+    backgroundColor: "#f0f0f0",
+    borderRadius: "10px",
+  },
+  inputField: {
+    flex: 8, // 80% of the input area
+    padding: "10px",
+    border: "none",
+    borderRadius: "5px",
+    marginRight: "10px",
+    fontSize: "16px",
+  },
+  voiceMessageControls: {
+    flex: 1, // 10% of the input area
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    marginRight: "10px",
+  },
+  sendBtn: {
+    flex: 1, // 10% of the input area
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#4CAF50",
+    color: "#fff",
+    border: "none",
+    borderRadius: "5px",
+    padding: "10px",
+    cursor: "pointer",
+  },
+  icon: {
+    fontSize: "24px",
+    color: "#333",
+  },
 };
 
 export default Home;

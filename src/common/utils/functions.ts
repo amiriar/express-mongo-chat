@@ -16,5 +16,5 @@ export function deleteFileInPublic(fileAddress: string | undefined): void {
     }
   } else {
     console.log('No file address or date provided.');
-  }
+  } 
 }

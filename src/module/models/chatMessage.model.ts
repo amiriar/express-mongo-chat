@@ -1,4 +1,4 @@
-import mongoose, { Document, ObjectId, Schema } from 'mongoose';
+import mongoose, { Document, ObjectId, Schema, Types } from "mongoose";
 
 export interface IUserInfo {
   _id: ObjectId | string;
@@ -14,24 +14,29 @@ export interface IChatMessage extends Document {
   room: string;
   timestamp: Date;
   date: string;
-  status: 'sent' | 'delivered' | 'seen';
+  status: "sent" | "delivered" | "seen";
+  voiceUrl?: string; // Add this line for optional voice URL
 }
 
-const UserInfoSchema = new Schema<IUserInfo>({
-  _id: { type: mongoose.Schema.Types.ObjectId, required: true },
-  username: { type: String, required: true },
-  phone: { type: String, required: false },
-});
-
 const ChatMessageSchema = new Schema<IChatMessage>({
-  sender: { type: UserInfoSchema, required: true },  // Embedded sender object
-  recipient: { type: UserInfoSchema, required: false },  // Embedded recipient object
-  content: { type: String, required: true },
-  room: { type: String, required: true },  // Room for the chat
+  // sender: { type: Types.ObjectId, required: true },
+  // recipient: { type: Types.ObjectId, required: false },
+  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  content: { type: String, required: false },
+  room: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
   date: { type: String, required: false },
-  status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'sent' },
+  status: {
+    type: String,
+    enum: ["sent", "delivered", "seen"],
+    default: "sent",
+  },
+  voiceUrl: { type: String, required: false }, // Add this line for the voice URL
 });
 
-const ChatMessageModel = mongoose.model<IChatMessage>('ChatMessage', ChatMessageSchema);
+const ChatMessageModel = mongoose.model<IChatMessage>(
+  "ChatMessage",
+  ChatMessageSchema
+);
 export default ChatMessageModel;
