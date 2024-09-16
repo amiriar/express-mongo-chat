@@ -66,7 +66,7 @@ const Home: React.FC = () => {
   useEffect(() => {
     // Fetch user ID when component mounts
     axios
-      .get("http://localhost:3001/api/dashboard/whoami", {
+      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, {
         withCredentials: true,
       })
       .then((res) => {
@@ -82,7 +82,7 @@ const Home: React.FC = () => {
   useEffect(() => {
     if (!sender) return;
 
-    const socketInstance = io("http://localhost:3001", {
+    const socketInstance = io(`${import.meta.env.VITE_BACKEND_BASE_URL}`, {
       query: { userId: sender._id },
     });
 
@@ -127,9 +127,6 @@ const Home: React.FC = () => {
 
   const sendMessage = (e: any) => {
     e.preventDefault();
-    console.log(sender);
-    console.log(recipient);
-
     if (!message.trim()) return alert("Please write something down.");
 
     if (socket && room) {
@@ -189,8 +186,6 @@ const Home: React.FC = () => {
         socket?.emit("getHistory", formattedRoom);
 
         const handleSendHistory = (data: object) => {
-          console.log(data);
-
           setMessages(data as Message[]);
         };
 
@@ -204,10 +199,10 @@ const Home: React.FC = () => {
 
       // Call getHistory immediately and set up an interval
       getHistory();
-      const interval = setInterval(getHistory, 1000);
+      // const interval = setInterval(getHistory, 1000);
 
-      // Clean up: clear the interval when the component unmounts or room changes
-      return () => clearInterval(interval);
+      // // Clean up: clear the interval when the component unmounts or room changes
+      // return () => clearInterval(interval);
     }
   }, [room, socket, sender?._id, recipient?._id, publicName]);
 
@@ -260,14 +255,9 @@ const Home: React.FC = () => {
       mediaRecorderRef.current.stop();
 
       mediaRecorderRef.current.onstop = async () => {
-        console.log("Recording stopped");
-        console.log("Recorded chunks:", recordedChunksRef.current);
-
         const blob = new Blob(recordedChunksRef.current, {
           type: "audio/webm",
         });
-
-        console.log("Blob details:", blob);
 
         if (blob.size === 0) {
           console.error("Blob is empty. Check recordedChunks.");
@@ -277,7 +267,6 @@ const Home: React.FC = () => {
         // Convert blob to FormData to send it as a file
         const formData = new FormData();
         formData.append("voiceMessage", blob, "voice-message.webm");
-        console.log(recipient);
 
         const senderJson = JSON.stringify(sender?._id);
         const recipientJson = JSON.stringify(recipient && recipient?._id);
@@ -299,8 +288,6 @@ const Home: React.FC = () => {
             }
           );
 
-          console.log("Server response:", response);
-
           const mp3Url = response.data.filePath;
           socket?.emit("voice-message", { mp3Url, room });
         } catch (error) {
@@ -312,7 +299,7 @@ const Home: React.FC = () => {
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      await axios.delete(`http://localhost:3001/api/messages/${messageId}`);
+      await axios.delete(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/${messageId}`);
       console.log(`Message with ID ${messageId} deleted.`);
       // Refresh messages or remove the deleted message from the state
     } catch (error) {
@@ -322,7 +309,6 @@ const Home: React.FC = () => {
 
   const handleCopyMessage = (message: string) => {
     navigator.clipboard.writeText(message);
-    console.log("Message copied to clipboard:", message);
   };
 
   const toggleOptions = (messageId: string) => {
@@ -333,7 +319,6 @@ const Home: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Scroll to bottom whenever messages change or component mounts
   useEffect(() => {
     scrollToBottom();
   }, [messages]);

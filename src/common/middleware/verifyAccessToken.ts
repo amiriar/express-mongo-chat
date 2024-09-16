@@ -47,8 +47,6 @@ export async function VerifyAccessToken(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  console.log();
-  
   try {
     const token = getToken(req.headers);
 
@@ -76,8 +74,6 @@ export async function VerifyAccessToken(
     next();
   } catch (error) {
     // Handle errors and pass them to the next middleware
-    console.log(error);
-    
     next(createHttpError.Unauthorized('وارد حساب کاربری خود شوید'));
   }
 }

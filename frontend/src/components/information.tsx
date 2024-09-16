@@ -12,7 +12,7 @@ const Information: React.FC = () => {
     try {
       await axios
         .post(
-          "http://localhost:3001/api/auth/login",
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`,
           { phone, otp },
           { withCredentials: true }
         )
@@ -25,17 +25,15 @@ const Information: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    axios
-      .get("http://localhost:3001/api/dashboard/whoami", {
-        withCredentials: true,
-      })
-      .then((res) => {
-        console.log(res);
-
-        // navigate("/chats")
-      });
-  }, []);
+  // useEffect(() => {
+  //   axios
+  //     .get("http://localhost:3001/api/dashboard/whoami", {
+  //       withCredentials: true,
+  //     })
+  //     .then((res) => {
+  //       // navigate("/chats")
+  //     });
+  // }, []);
 
   return (
     <div>

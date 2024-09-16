@@ -38,11 +38,37 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    // Handle chat message
-    // socket.on("chatMessage", (message) => {
-    //   // Broadcast to everyone including the sender
-    //   io.emit("chatMessage", message);
-    // });
+    socket.on("login", async (userId) => {
+      socket.user = await UserModel.findById(userId, { _id: 1, username: 1 });
+
+      if (!socket.user) {
+        return socket.emit("error", "User not found");
+      }
+
+      console.log(`User ${socket.user.username} logged in`);
+
+      // Send rooms the user has access to
+      const userRooms = await RoomModel.find({
+        participants: socket.user._id,
+      }).select("_id roomName isGroup createdAt");
+
+      // Emit the rooms to the user
+      socket.emit("userRooms", userRooms);
+
+      // Join the user to each of their rooms
+      userRooms.forEach((room) => {
+        socket.join(room._id.toString());
+      });
+
+      // Also, join the user to default public rooms (General and Announcements)
+      const publicRooms = await RoomModel.find({
+        roomName: { $in: ["General", "Announcements"] },
+      }).select("_id roomName");
+
+      publicRooms.forEach((room) => {
+        socket.join(room._id.toString());
+      });
+    });
 
     // Handle user typing event
     socket.on("typing", (isTyping) => {
@@ -81,15 +107,15 @@ export const handleSocketConnections = (io: Server) => {
         const isPrivateChat =
           ids.length === 2 &&
           ids.every((id: string) => mongoose.Types.ObjectId.isValid(id));
-    
+
         let history = [];
-    
+
         if (isPrivateChat) {
           const [senderId, recipientId] = ids;
-    
+
           const senderObjectId = new mongoose.Types.ObjectId(senderId);
           const recipientObjectId = new mongoose.Types.ObjectId(recipientId);
-    
+
           // Fetch private chat history where the sender and recipient match
           history = await ChatMessageModel.find({
             $or: [
@@ -115,9 +141,6 @@ export const handleSocketConnections = (io: Server) => {
             .populate("recipient", "username profile phoneNumber") // Populate recipient details
             .sort({ timestamp: 1 });
         }
-        console.log(history);
-        
-    
         // Emit the chat history back to the client with populated user details
         socket.emit("sendHistory", history);
       } catch (error) {
@@ -125,39 +148,7 @@ export const handleSocketConnections = (io: Server) => {
         socket.emit("sendHistory", []); // Send an empty array if there's an error
       }
     });
-    
 
-    // socket.on("sendMessage", async (messageData) => {
-    //   console.log("New message data:", messageData);
-
-    //   // Store the message in the database
-    //   await ChatMessageModel.create(messageData);
-
-    //   // Emit the message to everyone in the room
-    //   io.to(messageData.room).emit("message", messageData);
-    // });
-
-    // socket.on("sendMessage", async (messageData) => {
-    //   if (onlineUsers.has(messageData?.recipient)) {
-    //     await ChatMessageModel.create(messageData);
-    //     // Emit the message to the recipient if they are online
-    //     io.to(onlineUsers.get(messageData?.recipient).socketId).emit(
-    //       "message",
-    //       messageData
-    //     );
-    //   } else {
-    //     // Store the message as unseen if the recipient is offline
-    //     messageData.seen = false;
-    //     await ChatMessageModel.create(messageData);
-
-    //     console.log(
-    //       `User ${messageData?.recipient} is offline. Message saved for later.`
-    //     );
-    //   }
-
-    //   // Emit the message to the room (for group/public messages)
-    //   io.to(messageData.room).emit("message", messageData);
-    // });
     socket.on("sendMessage", async (messageData) => {
       try {
         // Save the message to the database
@@ -203,7 +194,6 @@ export const handleSocketConnections = (io: Server) => {
     });
 
     const sendOfflineUsers = async (socket: Socket) => {
-      // Get all users
       const allUsers = await UserModel.find({}, "_id username profile");
 
       // Filter out online users
@@ -211,47 +201,8 @@ export const handleSocketConnections = (io: Server) => {
         (user: any) => !onlineUsers.has(user._id.toString())
       );
 
-      // Emit offline users list to the client
       socket.emit("offlineUsers", offlineUsers);
     };
-
-    // socket.on("voice-message", (audioArrayBuffer: ArrayBuffer) => {
-    //   // Log the type and content to debug the issue
-    //   console.log("Type of received audio data:", typeof audioArrayBuffer);
-    //   console.log("Received audio data:", audioArrayBuffer);
-
-    //   // Check if the received data is a valid ArrayBuffer
-    //   if (audioArrayBuffer instanceof ArrayBuffer) {
-    //     // Convert the ArrayBuffer to a Buffer
-    //     const audioBuffer = Buffer.from(audioArrayBuffer);
-
-    //     // Generate a unique filename for the audio
-    //     const fileName = `audio_${uuidv4()}.mp3`;
-
-    //     const audioUploadPath = path.join(
-    //       __dirname,
-    //       "..",
-    //       "..",
-    //       "public",
-    //       "uploads",
-    //       "audio"
-    //     );
-
-    //     if (!fs.existsSync(audioUploadPath)) {
-    //       fs.mkdirSync(audioUploadPath, { recursive: true });
-    //     }
-
-    //     // Save the audio file
-    //     fs.writeFileSync(`${audioUploadPath}/${fileName}`, audioBuffer);
-
-    //     // Broadcast the voice message to other users
-
-    //     // socket.emit("voice-message", { mp3Url: `/uploads/${fileName}` });
-    //     socket.broadcast.emit("voice-message", { audioUploadPath, fileName });
-    //   } else {
-    //     console.error("Invalid data type received, expected ArrayBuffer.");
-    //   }
-    // });
 
     socket.on(
       "voice-message",

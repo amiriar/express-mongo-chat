@@ -96,8 +96,6 @@ export class AuthController {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log(req.user);
-      
       await UserModel.findOneAndUpdate(
         { phoneNumber: req.user.phone },
         { status: "offline", lastSeen: new Date() }
