@@ -7,20 +7,15 @@ import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
 import { TbLogout2 } from "react-icons/tb";
 import { CiClock2 } from "react-icons/ci";
-import { FaMicrophone, FaStop, FaPaperPlane } from "react-icons/fa";
-import { FaComments } from "react-icons/fa";
-
 import {
-  Button,
-  IconButton,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  Typography,
-  TextField,
-  Box,
-} from "@mui/material";
+  FaMicrophone,
+  FaStop,
+  FaPaperPlane,
+  FaPlus,
+  FaUserPlus,
+} from "react-icons/fa";
+import { FaComments } from "react-icons/fa";
+import mongoose from "mongoose";
 
 interface Message {
   _id?: string;
@@ -49,6 +44,15 @@ interface Recipient {
   profile?: string;
 }
 
+interface Room {
+  _id: string;
+  roomName: string;
+  participants: mongoose.Types.ObjectId[];
+  isGroup: boolean;
+  createdAt: Date;
+  isPublic: boolean;
+}
+
 const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
@@ -62,7 +66,9 @@ const Home: React.FC = () => {
   >([]);
   // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
-  const [rooms, setRooms] = useState<Array<string>>([]);
+  // const [rooms, setRooms] = useState<Array<string>>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
@@ -180,22 +186,7 @@ const Home: React.FC = () => {
   };
 
   const settingHandler = () => {
-    navigate("/setting");
-  };
-
-  const logoutHandler = () => {
-    axios
-      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/logout`, {
-        withCredentials: true,
-      })
-      .then(() => {
-        navigate("/");
-      })
-      .catch((err) => {
-        if (err?.response?.status === 401) {
-          navigate("/register");
-        }
-      });
+    navigate("/settings");
   };
 
   useEffect(() => {
@@ -212,8 +203,6 @@ const Home: React.FC = () => {
       });
 
       socket?.on("deleteMessageResponse", (data: any) => {
-        console.log(data);
-
         if (data.success) {
           setMessages((prevMessages) =>
             prevMessages.filter((msg) => msg._id !== data.messageId)
@@ -223,7 +212,13 @@ const Home: React.FC = () => {
         }
       });
 
+      socket?.on("newRoomResponse", (roomData: Room) => {
+        setRooms((prevRooms) => [...prevRooms, roomData]);
+      });
+
       return () => {
+        socket?.off("newRoomResponse");
+        socket?.off("deleteMessageResponse");
         socket?.off("sendHistory");
       };
     }
@@ -345,9 +340,11 @@ const Home: React.FC = () => {
           );
 
           const mp3Url = response.data.filePath;
-          console.log({ mp3Url, room });
-
-          socket?.emit("voice-message", { mp3Url, room });
+          socket?.emit("voice-message", {
+            mp3Url,
+            room,
+            senderId: sender?._id,
+          });
         } catch (error) {
           console.error("Error uploading voice message:", error);
         }
@@ -375,10 +372,35 @@ const Home: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  const addRoomHandler = () => {
+    const roomName = prompt("What is the name of the room?");
+    if (roomName?.trim()) {
+      if (roomName.length > 15) {
+        alert("Use less then 15 charecters");
+        return;
+      }
+      socket?.emit("newRoom", { roomName, senderId: sender?._id });
+    } else {
+      alert("please write something down...");
+    }
+  };
+
+  const addUserToRoomHandler = (room: Room) => {
+    console.log(room); // logic HERE
+  };
+
   return (
     <div className="chat-container">
       <div className="sidebar">
-        <h2>Chat Rooms</h2>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <h2>Chat Rooms</h2>
+          <div
+            onClick={settingHandler}
+            style={{ cursor: "pointer", boxSizing: "border-box" }}
+          >
+            <IoMdSettings size={30} />
+          </div>
+        </div>
 
         {rooms.map((room: any) => {
           return (
@@ -392,6 +414,11 @@ const Home: React.FC = () => {
           );
         })}
 
+        <button onClick={addRoomHandler} className="add-room-btn">
+          <FaPlus />
+          Add a Room
+        </button>
+
         <h2 style={{ marginTop: "20px" }}>Users</h2>
         <ul className="users-list">
           {onlineUsers?.map((user: any) => (
@@ -401,11 +428,21 @@ const Home: React.FC = () => {
               style={{ cursor: "pointer", padding: "2px" }}
             >
               <img
-                src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                src={
+                  user._id !== sender?._id
+                    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
+                    : `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg  `
+                }
                 alt="Profile"
                 className="avatar"
               />
-              <span>{user.username} (Online)</span>
+              <span>
+                {user._id === sender?._id ? (
+                  "Saved Messages"
+                ) : (
+                  <span>{user.username} (Online)</span>
+                )}
+              </span>
             </li>
           ))}
 
@@ -448,21 +485,21 @@ const Home: React.FC = () => {
                   shownRoomName.roomName
                 : "No room joined"}
           </h2>
-          <div
-            style={{
-              padding: "5px",
-              cursor: "pointer",
-              display: "flex",
-              gap: "15px",
-            }}
-          >
-            <div onClick={logoutHandler}>
-              <TbLogout2 size={30} />
+          {typeof shownRoomName === "object" ? (
+            <div
+              style={{
+                padding: "5px",
+                cursor: "pointer",
+                display: "flex",
+                gap: "15px",
+              }}
+              onClick={() => addUserToRoomHandler(shownRoomName)}
+            >
+              <FaUserPlus size={25} />
             </div>
-            <div onClick={settingHandler}>
-              <IoMdSettings size={30} />
-            </div>
-          </div>
+          ) : (
+            ""
+          )}
         </div>
 
         <div className="messages">

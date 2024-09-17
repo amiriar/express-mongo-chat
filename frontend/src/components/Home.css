@@ -24,6 +24,28 @@
   border-radius: 5px;
 }
 
+.add-room-btn {
+  /* margin: 10px 0; */
+  padding: 10px;
+  background-color: transparent;
+  color: black;
+  border: 2px solid #3498db;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  
+}
+
+.add-room-btn:hover{
+  background-color: #3498db !important;
+  color: white !important;
+}
+
 .users-list {
   list-style-type: none;
   padding: 0;

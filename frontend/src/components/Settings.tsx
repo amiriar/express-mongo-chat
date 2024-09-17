@@ -2,6 +2,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./Settings.css"; // Import CSS file for custom styles
+import { TbLogout2 } from "react-icons/tb";
 
 function Settings() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ function Settings() {
       formData.append("profile", profile);
     }
     formData.append("bio", bio);
-    
+
     axios
       .post("http://localhost:3001/api/dashboard", formData, {
         withCredentials: true,
@@ -48,7 +49,6 @@ function Settings() {
         setProfileName(response.data.profile);
         setEmail(response.data.email);
         setBio(response.data.bio);
-        
       })
       .catch((err) => {
         if (err?.response?.status === 401) navigate("/");
@@ -61,9 +61,48 @@ function Settings() {
     }
   };
 
+  const logoutHandler = () => {
+    axios
+      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/logout`, {
+        withCredentials: true,
+      })
+      .then(() => {
+        navigate("/");
+      })
+      .catch((err) => {
+        if (err?.response?.status === 401) {
+          navigate("/register");
+        }
+      });
+  };
+
   return (
     <div className="settings-container">
-      <h1>Settings</h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-evenly",
+          gap: "20px",
+          alignItems: "center",
+        }}
+      >
+        <h1>Settings</h1>
+        <div
+          onClick={logoutHandler}
+          style={{
+            height: "100%",
+            boxSizing: "border-box",
+            padding: "5px",
+            position: "relative",
+          }}
+        >
+          <TbLogout2
+            size={35}
+            cursor={"pointer"}
+            style={{ position: "absolute", top: -10 }}
+          />
+        </div>
+      </div>
       <p className="settings-description">
         Here, you can change, add, or remove data from your profile!
       </p>

@@ -152,6 +152,19 @@ export const handleSocketConnections = (io: Server) => {
         });
     });
 
+    socket.on("newRoom", async (data: any) => {
+      const { roomName, senderId } = data;
+
+      const newRoom = await RoomModel.create({
+        roomName,
+        participants: [senderId],
+        isGroup: true,
+        isPublic: false,
+      });
+
+      io.emit("newRoomResponse", newRoom)
+    });
+
     const sendOfflineUsers = async (socket: Socket) => {
       const allUsers = await UserModel.find({}, "_id username profile");
 
@@ -179,19 +192,14 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("login", async (userId: string) => {
       try {
-        // Fetch user from DB
         const user = await UserModel.findById(userId).select("_id username");
 
-        // Handle user not found
         if (!user) {
           return socket.emit("error", "User not found");
         }
 
-        // Set the user to socket (using the extended interface)
-
         console.log(`User ${User?.username} logged in`);
 
-        // Automatically join the user to public rooms (General and Announcements)
         const publicRooms = await RoomModel.find({
           roomName: { $in: ["General", "Announcements"] },
         }).select("_id roomName");
@@ -207,23 +215,22 @@ export const handleSocketConnections = (io: Server) => {
           console.log(`User ${User?.username} joined ${room.roomName}`);
         });
 
-        publicRooms.forEach((room: any) => {
-          socket.join(room._id.toString());
+        // publicRooms.forEach((room: any) => {
+        //   socket.join(room._id.toString());
 
-          // Notify other users in the room
-          socket.to(room._id.toString()).emit("userJoinedRoom", {
-            roomId: room._id,
-            message: `${User?.username} joined ${room.roomName}`,
-          });
-        });
+        //   socket.to(room._id.toString()).emit("userJoinedRoom", {
+        //     roomId: room._id,
+        //     message: `${User?.username} joined ${room.roomName}`,
+        //   });
+        // });
 
-        // Send public rooms to the user (if you want to display them in the UI)
-        socket.emit("publicRooms", publicRooms);
+        // socket.emit("publicRooms", publicRooms);
 
-        // Send rooms the user has access to (excluding public rooms)
         const userRooms = await RoomModel.find({
-          participants: { $in: [User?._id?.toString()] },
-          // roomName: { $nin: ["General", "Announcements"] },
+          $or: [
+            { isPublic: true },
+            { participants: { $in: [User?._id?.toString()] } },
+          ],
         }).select("_id roomName isGroup createdAt participants");
 
         socket.emit("userRooms", userRooms); // Emit all user-specific rooms
@@ -244,7 +251,7 @@ export const handleSocketConnections = (io: Server) => {
     //     try {
     //       console.log(audioArrayBuffer);
     //       console.log(typeof audioArrayBuffer);
-          
+
     //       const audioBuffer = Buffer.from(audioArrayBuffer);
     //       const fileName = `audio_${uuidv4()}.mp3`;
     //       const audioUploadPath = path.join(
@@ -259,11 +266,11 @@ export const handleSocketConnections = (io: Server) => {
     //       if (!fs.existsSync(audioUploadPath)) {
     //         fs.mkdirSync(audioUploadPath, { recursive: true });
     //       }
-          
+
     //       fs.writeFileSync(`${audioUploadPath}/${fileName}`, audioBuffer);
-          
+
     //       const voiceUrl = `/uploads/audio/${fileName}`;
-          
+
     //       messageData.voiceUrl = voiceUrl;
     //       const newMessage = await ChatMessageModel.create(messageData);
     //       console.log(newMessage);
@@ -293,38 +300,43 @@ export const handleSocketConnections = (io: Server) => {
     //           : null,
     //       };
 
-          
-
     //       io.to(messageData.room).emit("voice-message", messageToSend);
     //     } catch (error) {
     //       console.error("Error saving voice message:", error);
     //     }
     //   }
     // );
-  
+
     socket.on("voice-message", async (data: any) => {
       try {
-        const { mp3Url, room } = data;
-    
+        const { mp3Url, room, senderId } = data;
+
         // Check if mp3Url and room are provided
-        if (!mp3Url || !room) {
-          throw new Error("Missing mp3Url or room in data");
+        if (!mp3Url || !room || !senderId) {
+          throw new Error("Missing data");
         }
-    
+
         // Create a message object with the URL
         const messageData = {
           voiceUrl: mp3Url,
           room: room._id,
+          sender: senderId,
           // Add other necessary message data here
         };
-    
+
         const newMessage = await ChatMessageModel.create(messageData);
         console.log(newMessage);
-    
+
         // Find sender and recipient details
-        const sender = await UserModel.findById(newMessage.sender, "username profile");
-        const recipient = await UserModel.findById(newMessage.recipient, "username profile");
-    
+        const sender = await UserModel.findById(
+          newMessage.sender,
+          "username profile"
+        );
+        const recipient = await UserModel.findById(
+          newMessage.recipient,
+          "username profile"
+        );
+
         const messageToSend = {
           ...newMessage.toObject(),
           sender: {
@@ -340,14 +352,13 @@ export const handleSocketConnections = (io: Server) => {
               }
             : null,
         };
-    
+
         // Emit the message to the room
         io.to(room._id).emit("voice-message-response", messageToSend);
       } catch (error) {
         console.error("Error processing voice message:", error);
       }
     });
-    
   });
 };
 

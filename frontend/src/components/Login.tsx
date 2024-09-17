@@ -21,10 +21,11 @@ const Login: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await axios.post("http://localhost:3001/api/auth/login", { phone, otp }, { withCredentials: true });
+      await axios.post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`, { phone, otp }, { withCredentials: true });
       setMessage("Login successful.");
       setError(false);
-      navigate("/chats"); // Navigate to the chat dashboard
+      // navigate("/chats");
+      navigate("/settings");
     } catch (error) {
       setMessage("Invalid OTP or login failed.");
       setError(true);
@@ -33,8 +34,9 @@ const Login: React.FC = () => {
   };
 
   useEffect(() => {
-    axios.get("http://localhost:3001/api/dashboard/whoami", { withCredentials: true }).then(() => {
+    axios.get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, { withCredentials: true }).then(() => {
       navigate("/chats");
+      // navigate("/settings");
     });
   }, [navigate]);
 

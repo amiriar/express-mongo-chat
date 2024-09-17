@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/chats" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/setting" element={<Settings />} />
+        <Route path="/settings" element={<Settings />} />
         {/* Define other routes here */}
       </Routes>
     </Router>
