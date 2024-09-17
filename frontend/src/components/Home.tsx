@@ -185,7 +185,7 @@ const Home: React.FC = () => {
 
   const logoutHandler = () => {
     axios
-      .get("http://localhost:3001/api/auth/logout", {
+      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/logout`, {
         withCredentials: true,
       })
       .then(() => {
@@ -317,7 +317,7 @@ const Home: React.FC = () => {
 
         try {
           const response = await axios.post(
-            `http://localhost:3001/api/messages/upload-voice`,
+            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/upload-voice`,
             formData,
             {
               headers: {
@@ -390,7 +390,7 @@ const Home: React.FC = () => {
               style={{ cursor: "pointer", padding: "2px" }}
             >
               <img
-                src={`http://localhost:3001/${user.profile}`}
+                src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
                 alt="Profile"
                 className="avatar"
               />
@@ -408,7 +408,7 @@ const Home: React.FC = () => {
                   style={{ cursor: "pointer", padding: "2px" }}
                 >
                   <img
-                    src={`http://localhost:3001/${user.profile}`}
+                    src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
                     alt="Profile"
                     className="avatar"
                   />
@@ -430,10 +430,12 @@ const Home: React.FC = () => {
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <h2>
             Chat Room:{" "}
-            {
-              // @ts-ignore
-              typeof shownRoomName === 'string' ? shownRoomName : typeof shownRoomName === 'object' ? shownRoomName.roomName : "No room joined"
-            }
+            {typeof shownRoomName === "string"
+              ? shownRoomName
+              : typeof shownRoomName === "object"
+                ? // @ts-ignore
+                  shownRoomName.roomName
+                : "No room joined"}
           </h2>
           <div
             style={{
@@ -455,19 +457,15 @@ const Home: React.FC = () => {
         <div className="messages">
           {room ? (
             messages.map((msg: Message) => {
-              console.log(msg);
-
               return (
-                <div
-                  key={msg._id || msg.tempId}
-                  className="message-container"
-                >
+                <div key={msg._id || msg.tempId} className="message-container">
                   <div
                     className={`message ${
                       msg.sender._id === sender?._id ? "sent" : "received"
                     }`}
                   >
-                    <strong>{msg.sender.username}:</strong> {msg.content}
+                    <strong>{msg.sender.username}</strong>
+                    <p style={{ textAlign: "right" }}>{msg.content}</p>
                     <span className="timestamp">
                       {msg.isSending || !msg.timestamp ? (
                         <CiClock2 size={10} />
@@ -526,7 +524,7 @@ const Home: React.FC = () => {
                     >
                       <audio className="audio-player" controls>
                         <source
-                          src={`http://localhost:3001/${msg.voiceUrl}`}
+                          src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
                           type="audio/mp3"
                         />
                         Your browser does not support the audio element.
