@@ -64,7 +64,6 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch user ID when component mounts
     axios
       .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, {
         withCredentials: true,
@@ -95,34 +94,41 @@ const Home: React.FC = () => {
     return () => {
       socketInstance.disconnect();
     };
-  }, [sender]); // Ensure it only runs when `sender` is set
+  }, [sender]);
+
+  const createPrivateRoomId = (userId1: string, userId2: string) => {
+    const sortedIds = [userId1, userId2].sort(); 
+    return `${sortedIds[0]}-${sortedIds[1]}`;
+  };
 
   const joinRoom = (roomName: string) => {
-    setRecipient(null); // Clear recipient for public rooms
-    setShownRoomName(roomName); // Display the room name
-    setRoom(roomName);
-    setPublicName(roomName);
+    setRecipient(null);
+    setShownRoomName(roomName);
+    setRoom(roomName); 
+    setPublicName(roomName); 
 
     if (socket) {
-      socket.emit("joinRoom", roomName); // Emit join room event
+      socket.emit("joinRoom", roomName);
     }
   };
 
   const pvHandler = (user: any) => {
-    setShownRoomName("");
+    setShownRoomName(""); 
     setRecipient(user);
-    const roomName = `${sender?._id}-${user._id}`;
+
+    const roomName = createPrivateRoomId(sender?._id ?? "", user._id);
 
     setRoom(roomName);
 
     setShownRoomName(
-      sender?._id == user._id
-        ? `Saved Messages (${user.username})`
+      sender?._id === user._id
+        ? `Saved Messages (${user.username})` 
         : user.username
-          ? user.username
-          : roomName
+          ? user.username 
+          : roomName 
     );
-    socket?.emit("joinRoom", roomName);
+
+    socket?.emit("joinRoom", roomName); 
   };
 
   const sendMessage = (e: any) => {
@@ -150,7 +156,7 @@ const Home: React.FC = () => {
       }
 
       // Add the message to the state with 'isSending' status
-      setMessages((prevMessages) => [...prevMessages, messageData as Message]);
+      // setMessages((prevMessages) => [...prevMessages, messageData as Message]);
 
       // Emit the message to the server
       socket.emit("sendMessage", messageData);
@@ -197,11 +203,11 @@ const Home: React.FC = () => {
       // Get message history when the component mounts or room changes
 
       // Listen for new incoming messages in real-time
-      const handleIncomingMessage = (newMessage: Message) => {
-        setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
-      };
+      // const handleIncomingMessage = (newMessage: Message) => {
+      //   setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
+      // };
 
-      socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
+      // socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
 
       // Clean up the event listeners when the component unmounts or room changes
       return () => {
@@ -254,8 +260,8 @@ const Home: React.FC = () => {
     // });
     // setMessages((prevMessages) => [...prevMessages, messageData]);
     // });
-    socket.on("message", (receivedMessage: Message) => {
-      console.log("newmesg: ", receivedMessage);
+    // socket.on("message", (receivedMessage: Message) => {
+      // console.log("newmesg: ", receivedMessage);
 
       // setMessages((prevMessages) =>
       //   prevMessages.map((msg) =>
@@ -264,16 +270,16 @@ const Home: React.FC = () => {
       //       : msg
       //   )
       // );
-      setMessages((oldData: Message[]) => {
-        return [...oldData, receivedMessage];
-      });
-    });
+      // setMessages((oldData: Message[]) => {
+      //   return [...oldData, receivedMessage];
+      // });
+    // });
 
     return () => {
       socket.off("onlineUsers");
       socket.off("offlineUsers");
-      socket.off("voice-message"); // Clean up listener when component unmounts
-      socket?.off("message");
+      // socket.off("voice-message"); // Clean up listener when component unmounts
+      // socket?.off("message");
     };
   }, [socket]);
 
@@ -460,7 +466,12 @@ const Home: React.FC = () => {
             Chat Room:{" "}
             {
               // @ts-ignore
-              shownRoomName.roomName ? shownRoomName.roomName : room ? room : "No room joined"
+              shownRoomName.roomName
+              // @ts-ignore
+                ? shownRoomName.roomName
+                : room
+                  ? room
+                  : "No room joined"
             }
           </h2>
           <div
@@ -483,6 +494,8 @@ const Home: React.FC = () => {
         <div className="messages">
           {room ? (
             messages.map((msg: Message) => {
+              console.log(msg);
+
               return (
                 <div
                   // key={msg._id ? msg._id : Math.random() * 10000}

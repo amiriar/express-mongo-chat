@@ -1,4 +1,4 @@
-import express, { Application, Request, Response, NextFunction } from "express";
+import express, { Application } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -9,8 +9,7 @@ import AllExceptionHandler from "./src/common/exception/all-exception.handler";
 import { Server as SocketIOServer } from "socket.io";
 import { handleSocketConnections } from "./src/socket/socket.handler";
 import http from "http";
-import UserModel from "./src/module/models/user.model";
-import path from 'path'
+import path from 'path';
 
 dotenv.config();
 
@@ -30,15 +29,6 @@ async function main() {
     })
   );
 
-  // app.use(cors());
-
-  // const corsOptions = {
-  //   origin: 'http://localhost:3000', // Change this to your frontend URL
-  //   methods: 'GET,POST,PUT,DELETE,OPTIONS',
-  //   credentials: true, // Allow credentials
-  // };
-
-  // app.use(cors(corsOptions));
   app.use('/public', express.static(path.join(__dirname, 'public')));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -47,48 +37,14 @@ async function main() {
   app.use(mainRouter);
 
   swaggerConfig(app);
-
   NotFoundHandler(app);
   AllExceptionHandler(app);
 
   const io = new SocketIOServer(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
+    cors: { origin: "*", methods: ["GET", "POST"] },
   });
 
-  io.on("connection", (socket) => {
-    const userId = socket.handshake.query.userId; // Extract the user ID from the connection query
-
-    if (userId) {
-      // Set the user status to 'online' when they connect
-      UserModel.findByIdAndUpdate(userId, {
-        status: "online",
-        lastSeen: new Date(),
-      })
-        .then(() => {
-          console.log(`User ${userId} is online`);
-        })
-        .catch((err) => console.error(err));
-    }
-
-    // Listen for the 'disconnect' event to mark the user as 'offline'
-    socket.on("disconnect", () => {
-      if (userId) {
-        UserModel.findByIdAndUpdate(userId, {
-          status: "offline",
-          lastSeen: new Date(),
-        })
-          .then(() => {
-            console.log(`User ${userId} is offline`);
-          })
-          .catch((err) => console.error(err));
-      }
-    });
-  });
-
-  // Handle socket connections in a separate file
+  // Handle socket connections
   handleSocketConnections(io);
 
   server.listen(port, () => {

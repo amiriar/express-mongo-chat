@@ -92,49 +92,6 @@ export const handleSocketConnections = (io: Server) => {
         socket.emit("sendHistory", []);
       }
     });
-
-    // socket.on("sendMessage", async (messageData) => {
-    //   try {
-    //     console.log(messageData);
-        
-    //     const newMessage = await ChatMessageModel.create(messageData);
-
-    //     const sender = await UserModel.findById(
-    //       newMessage.sender,
-    //       "username profile"
-    //     );
-    //     const recipient = await UserModel.findById(
-    //       newMessage.recipient,
-    //       "username profile"
-    //     );
-
-    //     const messageToSend = {
-    //       _id: newMessage._id,
-    //       content: newMessage.content,
-    //       room: newMessage.room,
-    //       timestamp: newMessage.timestamp,
-    //       status: newMessage.status,
-    //       voiceUrl: newMessage.voiceUrl,
-    //       sender: {
-    //         _id: sender?._id,
-    //         username: sender?.username,
-    //         profile: sender?.profile,
-    //       },
-    //       recipient: recipient
-    //         ? {
-    //             _id: recipient._id,
-    //             username: recipient.username,
-    //             profile: recipient.profile,
-    //           }
-    //         : null,
-    //     };
-
-    //     io.to(messageToSend.room).emit("message", messageToSend);
-    //   } catch (error) {
-    //     console.error("Error sending message:", error);
-    //   }
-    // });
-
     socket.on("sendMessage", async (messageData) => {
       try {
         // Remove tempId before saving the message, as Mongoose will generate the _id
@@ -158,6 +115,7 @@ export const handleSocketConnections = (io: Server) => {
           room: newMessage.room,
           timestamp: newMessage.timestamp, // Now has the real timestamp
           status: newMessage.status,
+          isSending: false,
           voiceUrl: newMessage.voiceUrl,
           sender: {
             _id: sender?._id,
@@ -176,14 +134,15 @@ export const handleSocketConnections = (io: Server) => {
         // Send the message back to the sender and all other users in the room
         // io.to(messageToSend.room).emit("message", messageToSend);
         console.log('Emitting message to room:', messageToSend.room, messageToSend);
-        socket.to(newMessage.room).emit('message', messageToSend);
+
+        
+        // socket.to(newMessage.room).emit('message', messageToSend);
+        io.to(newMessage.room).emit('message', messageToSend);
       } catch (error) {
         console.error("Error sending message:", error);
       }
     });
-    
-
-    
+   
     const sendOfflineUsers = async (socket: Socket) => {
       const allUsers = await UserModel.find({}, "_id username profile");
 
@@ -208,37 +167,6 @@ export const handleSocketConnections = (io: Server) => {
         sendOfflineUsers(socket);
       }
     });
-
-    // socket.on("login", async () => {
-    //   try {
-    //     console.log(`User ${User?.username} logged in`);
-
-    //     // Send rooms the user has access to
-    //     const userRooms = await RoomModel.find({
-    //       participants: User?._id,
-    //     }).select("_id roomName isGroup createdAt");
-
-    //     // Emit the rooms to the user
-    //     socket.emit("userRooms", userRooms);
-
-    //     // Join the user to each of their rooms
-    //     userRooms.forEach((room: any) => {
-    //       socket.join(room._id.toString());
-    //     });
-
-    //     // Also, join the user to default public rooms (General and Announcements)
-    //     const publicRooms = await RoomModel.find({
-    //       roomName: { $in: ["General", "Announcements"] },
-    //     }).select("_id roomName");
-
-    //     publicRooms.forEach((room: any) => {
-    //       socket.join(room._id.toString());
-    //     });
-    //   } catch (err) {
-    //     console.error("Error logging in user:", err);
-    //     socket.emit("error", "Login failed");
-    //   }
-    // });
 
     socket.on("login", async (userId: string) => {
       try {
@@ -360,3 +288,21 @@ export const handleSocketConnections = (io: Server) => {
     );
   });
 };
+
+
+// import { Server, Socket } from "socket.io";
+// import { messageEvents } from "./events/messageEvents";
+// import { userEvents } from "./events/userEvents";
+// import { roomEvents } from "./events/roomEvents";
+
+// export const handleSocketConnections = (io: Server) => {
+//   const onlineUsers = new Map();
+
+//   io.on("connection", (socket: Socket) => {
+//     console.log(`New user connected: ${socket.id}`);
+
+//     userEvents(socket, io, onlineUsers);
+//     messageEvents(socket, io);
+//     roomEvents(socket, io);
+//   });
+// };
