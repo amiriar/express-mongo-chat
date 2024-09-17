@@ -205,11 +205,22 @@ const Home: React.FC = () => {
         ? `${sender?._id}-${recipient?._id}`
         : publicName;
 
-      // Function to get message history
       socket?.emit("getHistory", formattedRoom);
 
       socket?.on("sendHistory", (messageData: Message[]) => {
         setMessages(messageData as Message[]);
+      });
+
+      socket?.on("deleteMessageResponse", (data: any) => {
+        console.log(data);
+
+        if (data.success) {
+          setMessages((prevMessages) =>
+            prevMessages.filter((msg) => msg._id !== data.messageId)
+          );
+        } else if (data.success === false) {
+          alert("Error in deleting the message");
+        }
       });
 
       return () => {
@@ -230,6 +241,12 @@ const Home: React.FC = () => {
 
       return updatedMessages;
     });
+  });
+
+  socket?.on("voice-message-response", (messageData: Message) => {
+    console.log(messageData);
+
+    setMessages((prevMessages) => [...prevMessages, messageData]);
   });
 
   useEffect(() => {
@@ -328,6 +345,8 @@ const Home: React.FC = () => {
           );
 
           const mp3Url = response.data.filePath;
+          console.log({ mp3Url, room });
+
           socket?.emit("voice-message", { mp3Url, room });
         } catch (error) {
           console.error("Error uploading voice message:", error);
@@ -337,15 +356,7 @@ const Home: React.FC = () => {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    try {
-      await axios.delete(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/${messageId}`
-      );
-      console.log(`Message with ID ${messageId} deleted.`);
-      // Refresh messages or remove the deleted message from the state
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-    }
+    socket?.emit("deleteMessage", messageId);
   };
 
   const handleCopyMessage = (message: string) => {
@@ -461,11 +472,11 @@ const Home: React.FC = () => {
                 <div key={msg._id || msg.tempId} className="message-container">
                   <div
                     className={`message ${
-                      msg.sender._id === sender?._id ? "sent" : "received"
+                      msg?.sender?._id === sender?._id ? "sent" : "received"
                     }`}
                   >
-                    <strong>{msg.sender.username}</strong>
-                    <p style={{ textAlign: "right" }}>{msg.content}</p>
+                    <strong>{msg?.sender?.username}</strong>
+                    <p style={{ textAlign: "right" }}>{msg?.content}</p>
                     <span className="timestamp">
                       {msg.isSending || !msg.timestamp ? (
                         <CiClock2 size={10} />
@@ -483,7 +494,7 @@ const Home: React.FC = () => {
                           position: "absolute",
                           top: "-5px",
                           right:
-                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                            msg?.sender?._id === sender?._id ? "100%" : "-35px",
                         }}
                         onClick={() => toggleOptions(msg._id ?? "")}
                       >
@@ -500,12 +511,24 @@ const Home: React.FC = () => {
                           }}
                         >
                           <button
-                            onClick={() => handleCopyMessage(msg.content)}
+                            onClick={() => {
+                              handleCopyMessage(msg.content);
+                              toggleOptions(msg._id ?? "");
+                            }}
                           >
                             Copy
                           </button>
                           <button
-                            onClick={() => handleDeleteMessage(msg._id ?? "")}
+                            onClick={() => {
+                              toggleOptions(msg._id ?? "");
+                              if (
+                                confirm(
+                                  "Do You Really Want To Delete This Message??"
+                                )
+                              ) {
+                                handleDeleteMessage(msg._id ?? "");
+                              }
+                            }}
                           >
                             Delete
                           </button>
@@ -519,7 +542,7 @@ const Home: React.FC = () => {
                         width: "100%",
                         display: "flex",
                         justifyContent:
-                          msg.sender._id === sender?._id ? "right" : "left",
+                          msg?.sender?._id === sender?._id ? "right" : "left",
                       }}
                     >
                       <audio className="audio-player" controls>

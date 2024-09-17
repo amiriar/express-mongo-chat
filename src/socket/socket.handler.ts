@@ -92,6 +92,7 @@ export const handleSocketConnections = (io: Server) => {
         socket.emit("sendHistory", []);
       }
     });
+
     socket.on("sendMessage", async (messageData) => {
       try {
         // Remove tempId before saving the message, as Mongoose will generate the _id
@@ -131,19 +132,24 @@ export const handleSocketConnections = (io: Server) => {
             : null,
         };
 
-        // Send the message back to the sender and all other users in the room
-        // io.to(messageToSend.room).emit("message", messageToSend);
-        console.log(
-          "Emitting message to room:",
-          messageToSend.room,
-          messageToSend
-        );
-
         // socket.to(newMessage.room).emit('message', messageToSend);
         io.to(newMessage.room).emit("message", messageToSend);
       } catch (error) {
         console.error("Error sending message:", error);
       }
+    });
+
+    socket.on("deleteMessage", async (messageId) => {
+      await ChatMessageModel.deleteOne({ _id: messageId })
+        .then(() => {
+          io.emit("deleteMessageResponse", { success: true, messageId });
+        })
+        .catch((err) => {
+          io.emit("deleteMessageResponse", {
+            success: false,
+            error: err.message,
+          });
+        });
     });
 
     const sendOfflineUsers = async (socket: Socket) => {
@@ -232,63 +238,116 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on(
-      "voice-message",
-      async (audioArrayBuffer: ArrayBuffer, messageData) => {
-        try {
-          const audioBuffer = Buffer.from(audioArrayBuffer);
-          const fileName = `audio_${uuidv4()}.mp3`;
-          const audioUploadPath = path.join(
-            __dirname,
-            "..",
-            "..",
-            "public",
-            "uploads",
-            "audio"
-          );
+    // socket.on(
+    //   "voice-message",
+    //   async (audioArrayBuffer: ArrayBuffer, messageData) => {
+    //     try {
+    //       console.log(audioArrayBuffer);
+    //       console.log(typeof audioArrayBuffer);
+          
+    //       const audioBuffer = Buffer.from(audioArrayBuffer);
+    //       const fileName = `audio_${uuidv4()}.mp3`;
+    //       const audioUploadPath = path.join(
+    //         __dirname,
+    //         "..",
+    //         "..",
+    //         "public",
+    //         "uploads",
+    //         "audio"
+    //       );
 
-          if (!fs.existsSync(audioUploadPath)) {
-            fs.mkdirSync(audioUploadPath, { recursive: true });
-          }
+    //       if (!fs.existsSync(audioUploadPath)) {
+    //         fs.mkdirSync(audioUploadPath, { recursive: true });
+    //       }
+          
+    //       fs.writeFileSync(`${audioUploadPath}/${fileName}`, audioBuffer);
+          
+    //       const voiceUrl = `/uploads/audio/${fileName}`;
+          
+    //       messageData.voiceUrl = voiceUrl;
+    //       const newMessage = await ChatMessageModel.create(messageData);
+    //       console.log(newMessage);
 
-          fs.writeFileSync(`${audioUploadPath}/${fileName}`, audioBuffer);
+    //       const sender = await UserModel.findById(
+    //         newMessage.sender,
+    //         "username profile"
+    //       );
+    //       const recipient = await UserModel.findById(
+    //         newMessage.recipient,
+    //         "username profile"
+    //       );
 
-          const voiceUrl = `/uploads/audio/${fileName}`;
+    //       const messageToSend = {
+    //         ...newMessage.toObject(),
+    //         sender: {
+    //           _id: sender?._id,
+    //           username: sender?.username,
+    //           profile: sender?.profile,
+    //         },
+    //         recipient: recipient
+    //           ? {
+    //               _id: recipient._id,
+    //               username: recipient.username,
+    //               profile: recipient.profile,
+    //             }
+    //           : null,
+    //       };
 
-          messageData.voiceUrl = voiceUrl;
-          const newMessage = await ChatMessageModel.create(messageData);
+          
 
-          const sender = await UserModel.findById(
-            newMessage.sender,
-            "username profile"
-          );
-          const recipient = await UserModel.findById(
-            newMessage.recipient,
-            "username profile"
-          );
-
-          const messageToSend = {
-            ...newMessage.toObject(),
-            sender: {
-              _id: sender?._id,
-              username: sender?.username,
-              profile: sender?.profile,
-            },
-            recipient: recipient
-              ? {
-                  _id: recipient._id,
-                  username: recipient.username,
-                  profile: recipient.profile,
-                }
-              : null,
-          };
-
-          io.to(messageData.room).emit("voice-message", messageToSend);
-        } catch (error) {
-          console.error("Error saving voice message:", error);
+    //       io.to(messageData.room).emit("voice-message", messageToSend);
+    //     } catch (error) {
+    //       console.error("Error saving voice message:", error);
+    //     }
+    //   }
+    // );
+  
+    socket.on("voice-message", async (data: any) => {
+      try {
+        const { mp3Url, room } = data;
+    
+        // Check if mp3Url and room are provided
+        if (!mp3Url || !room) {
+          throw new Error("Missing mp3Url or room in data");
         }
+    
+        // Create a message object with the URL
+        const messageData = {
+          voiceUrl: mp3Url,
+          room: room._id,
+          // Add other necessary message data here
+        };
+    
+        const newMessage = await ChatMessageModel.create(messageData);
+        console.log(newMessage);
+    
+        // Find sender and recipient details
+        const sender = await UserModel.findById(newMessage.sender, "username profile");
+        const recipient = await UserModel.findById(newMessage.recipient, "username profile");
+    
+        const messageToSend = {
+          ...newMessage.toObject(),
+          sender: {
+            _id: sender?._id,
+            username: sender?.username,
+            profile: sender?.profile,
+          },
+          recipient: recipient
+            ? {
+                _id: recipient._id,
+                username: recipient.username,
+                profile: recipient.profile,
+              }
+            : null,
+        };
+    
+        // Emit the message to the room
+        io.to(room._id).emit("voice-message-response", messageToSend);
+      } catch (error) {
+        console.error("Error processing voice message:", error);
       }
-    );
+    });
+    
   });
 };
 
