@@ -10,6 +10,18 @@ import { CiClock2 } from "react-icons/ci";
 import { FaMicrophone, FaStop, FaPaperPlane } from "react-icons/fa";
 import { FaComments } from "react-icons/fa";
 
+import {
+  Button,
+  IconButton,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Typography,
+  TextField,
+  Box,
+} from "@mui/material";
+
 interface Message {
   _id?: string;
   tempId: string;
@@ -52,7 +64,7 @@ const Home: React.FC = () => {
   const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
   const [rooms, setRooms] = useState<Array<string>>([]);
   const [room, setRoom] = useState<string>("");
-  const [shownRoomName, setShownRoomName] = useState<string>("");
+  const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
@@ -97,15 +109,15 @@ const Home: React.FC = () => {
   }, [sender]);
 
   const createPrivateRoomId = (userId1: string, userId2: string) => {
-    const sortedIds = [userId1, userId2].sort(); 
+    const sortedIds = [userId1, userId2].sort();
     return `${sortedIds[0]}-${sortedIds[1]}`;
   };
 
   const joinRoom = (roomName: string) => {
     setRecipient(null);
     setShownRoomName(roomName);
-    setRoom(roomName); 
-    setPublicName(roomName); 
+    setRoom(roomName);
+    setPublicName(roomName);
 
     if (socket) {
       socket.emit("joinRoom", roomName);
@@ -113,7 +125,7 @@ const Home: React.FC = () => {
   };
 
   const pvHandler = (user: any) => {
-    setShownRoomName(""); 
+    setShownRoomName("");
     setRecipient(user);
 
     const roomName = createPrivateRoomId(sender?._id ?? "", user._id);
@@ -122,13 +134,13 @@ const Home: React.FC = () => {
 
     setShownRoomName(
       sender?._id === user._id
-        ? `Saved Messages (${user.username})` 
+        ? `Saved Messages (${user.username})`
         : user.username
-          ? user.username 
-          : roomName 
+          ? user.username
+          : roomName
     );
 
-    socket?.emit("joinRoom", roomName); 
+    socket?.emit("joinRoom", roomName);
   };
 
   const sendMessage = (e: any) => {
@@ -136,9 +148,9 @@ const Home: React.FC = () => {
     if (!message.trim()) return alert("Please write something down.");
 
     if (socket && room) {
-      const tempId = uuidv4(); // Temporary ID for tracking the message
+      const tempId = uuidv4();
       const messageData: Partial<Message> = {
-        tempId, // Assign tempId here
+        tempId,
         sender: {
           _id: sender?._id ?? "",
           username: sender?.username ?? "unknown",
@@ -146,7 +158,7 @@ const Home: React.FC = () => {
         content: message,
         room: room,
         publicName: publicName,
-        isSending: true, // Mark as sending
+        isSending: true,
       };
 
       if (recipient) {
@@ -200,31 +212,18 @@ const Home: React.FC = () => {
         setMessages(messageData as Message[]);
       });
 
-      // Get message history when the component mounts or room changes
-
-      // Listen for new incoming messages in real-time
-      // const handleIncomingMessage = (newMessage: Message) => {
-      //   setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
-      // };
-
-      // socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
-
-      // Clean up the event listeners when the component unmounts or room changes
       return () => {
         socket?.off("sendHistory");
-        // socket?.off("message", handleIncomingMessage);
       };
     }
   }, [room, socket, sender?._id, recipient?._id, setMessages]);
 
   socket?.on("message", (messageData: Message) => {
     setMessages((prevMessages) => {
-      // Check if the message was a "sending" message by matching tempId
       const updatedMessages = prevMessages.map((msg) =>
         msg.tempId === messageData.tempId ? messageData : msg
       );
 
-      // If the message is new, add it to the message list
       if (!updatedMessages.some((msg) => msg._id === messageData._id)) {
         updatedMessages.push(messageData);
       }
@@ -244,42 +243,9 @@ const Home: React.FC = () => {
       setOfflineUsers(users);
     });
 
-    // socket?.on("message", (messageData: Message) => {
-    // setMessages((prevMessages) => {
-    // Check if the message was a "sending" message by matching tempId
-    // const updatedMessages = prevMessages.map((msg) =>
-    //   msg.tempId === messageData.tempId ? messageData : msg
-    // );
-
-    // // If the message is new, add it to the message list
-    // if (!updatedMessages.some((msg) => msg._id === messageData._id)) {
-    //   updatedMessages.push(messageData);
-    // }
-
-    // return updatedMessages;
-    // });
-    // setMessages((prevMessages) => [...prevMessages, messageData]);
-    // });
-    // socket.on("message", (receivedMessage: Message) => {
-      // console.log("newmesg: ", receivedMessage);
-
-      // setMessages((prevMessages) =>
-      //   prevMessages.map((msg) =>
-      //     msg.tempId === receivedMessage.tempId
-      //       ? { ...msg, ...receivedMessage, isSending: false } // Update the message
-      //       : msg
-      //   )
-      // );
-      // setMessages((oldData: Message[]) => {
-      //   return [...oldData, receivedMessage];
-      // });
-    // });
-
     return () => {
       socket.off("onlineUsers");
       socket.off("offlineUsers");
-      // socket.off("voice-message"); // Clean up listener when component unmounts
-      // socket?.off("message");
     };
   }, [socket]);
 
@@ -301,7 +267,7 @@ const Home: React.FC = () => {
 
   const handleStartRecording = () => {
     setIsRecording(true);
-    recordedChunksRef.current = []; // Clear previous chunks
+    recordedChunksRef.current = [];
 
     navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -466,12 +432,7 @@ const Home: React.FC = () => {
             Chat Room:{" "}
             {
               // @ts-ignore
-              shownRoomName.roomName
-              // @ts-ignore
-                ? shownRoomName.roomName
-                : room
-                  ? room
-                  : "No room joined"
+              typeof shownRoomName === 'string' ? shownRoomName : typeof shownRoomName === 'object' ? shownRoomName.roomName : "No room joined"
             }
           </h2>
           <div
@@ -498,7 +459,6 @@ const Home: React.FC = () => {
 
               return (
                 <div
-                  // key={msg._id ? msg._id : Math.random() * 10000}
                   key={msg._id || msg.tempId}
                   className="message-container"
                 >
@@ -508,20 +468,13 @@ const Home: React.FC = () => {
                     }`}
                   >
                     <strong>{msg.sender.username}:</strong> {msg.content}
-                    {/* <span className="timestamp">
-                      {msg.timestamp ? (
-                        new Date(msg.timestamp).toLocaleTimeString()
-                      ) : (
-                        <CiClock2 size={10} />
-                      )}
-                    </span> */}
                     <span className="timestamp">
                       {msg.isSending || !msg.timestamp ? (
-                        <CiClock2 size={10} /> // Sending icon
+                        <CiClock2 size={10} />
                       ) : msg.timestamp ? (
-                        new Date(msg.timestamp).toLocaleTimeString() // Actual timestamp
+                        new Date(msg.timestamp).toLocaleTimeString()
                       ) : (
-                        "Unknown Time" // Fallback or placeholder
+                        "Unknown Time"
                       )}
                     </span>
                     <div className="message-options">
@@ -598,14 +551,14 @@ const Home: React.FC = () => {
           style={styles.form}
         >
           <input
-            value={room ? message : ""} // Only allow input if room is joined
+            value={room ? message : ""}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={
               room ? "Type your message..." : "Join a room to send a message!"
             }
             className="input-field"
             style={styles.inputField}
-            disabled={!room} // Disable input if no room is joined
+            disabled={!room}
           />
           <div
             className="voice-message-controls"
@@ -641,7 +594,7 @@ const Home: React.FC = () => {
             type="submit"
             className="send-btn"
             style={styles.sendBtn}
-            disabled={!room} // Disable button if no room is joined
+            disabled={!room}
           >
             <FaPaperPlane />
           </button>
@@ -670,7 +623,7 @@ const styles = {
     borderRadius: "10px",
   },
   inputField: {
-    flex: 8, // 80% of the input area
+    flex: 8,
     padding: "10px",
     border: "none",
     borderRadius: "5px",
@@ -678,7 +631,7 @@ const styles = {
     fontSize: "16px",
   },
   voiceMessageControls: {
-    flex: 1, // 10% of the input area
+    flex: 1,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -686,7 +639,7 @@ const styles = {
     marginRight: "10px",
   },
   sendBtn: {
-    flex: 1, // 10% of the input area
+    flex: 1,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",

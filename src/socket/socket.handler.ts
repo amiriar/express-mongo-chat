@@ -50,7 +50,7 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("getHistory", async (roomName) => {
       try {
-        const ids = roomName.split("-");
+        const ids = !roomName._id ? roomName?.split("-") : roomName._id;
         const isPrivateChat =
           ids.length === 2 &&
           ids.every((id: string) => mongoose.Types.ObjectId.isValid(id));
@@ -77,7 +77,7 @@ export const handleSocketConnections = (io: Server) => {
           })
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
-            .sort({ timestamp: 1 });            
+            .sort({ timestamp: 1 });
         } else {
           history = await ChatMessageModel.find({
             room: roomName,
@@ -96,9 +96,9 @@ export const handleSocketConnections = (io: Server) => {
       try {
         // Remove tempId before saving the message, as Mongoose will generate the _id
         const { tempId, ...rest } = messageData;
-    
+
         const newMessage = await ChatMessageModel.create(rest); // Mongoose will auto-generate _id
-    
+
         const sender = await UserModel.findById(
           newMessage.sender,
           "username profile"
@@ -107,7 +107,7 @@ export const handleSocketConnections = (io: Server) => {
           newMessage.recipient,
           "username profile"
         );
-    
+
         const messageToSend = {
           _id: newMessage._id, // Use the generated _id
           tempId, // Send the tempId back to update the message in the frontend
@@ -133,16 +133,19 @@ export const handleSocketConnections = (io: Server) => {
 
         // Send the message back to the sender and all other users in the room
         // io.to(messageToSend.room).emit("message", messageToSend);
-        console.log('Emitting message to room:', messageToSend.room, messageToSend);
+        console.log(
+          "Emitting message to room:",
+          messageToSend.room,
+          messageToSend
+        );
 
-        
         // socket.to(newMessage.room).emit('message', messageToSend);
-        io.to(newMessage.room).emit('message', messageToSend);
+        io.to(newMessage.room).emit("message", messageToSend);
       } catch (error) {
         console.error("Error sending message:", error);
       }
     });
-   
+
     const sendOfflineUsers = async (socket: Socket) => {
       const allUsers = await UserModel.find({}, "_id username profile");
 
@@ -214,8 +217,8 @@ export const handleSocketConnections = (io: Server) => {
         // Send rooms the user has access to (excluding public rooms)
         const userRooms = await RoomModel.find({
           participants: { $in: [User?._id?.toString()] },
-            // roomName: { $nin: ["General", "Announcements"] },
-          }).select("_id roomName isGroup createdAt participants");
+          // roomName: { $nin: ["General", "Announcements"] },
+        }).select("_id roomName isGroup createdAt participants");
 
         socket.emit("userRooms", userRooms); // Emit all user-specific rooms
 
@@ -288,7 +291,6 @@ export const handleSocketConnections = (io: Server) => {
     );
   });
 };
-
 
 // import { Server, Socket } from "socket.io";
 // import { messageEvents } from "./events/messageEvents";
