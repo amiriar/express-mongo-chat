@@ -9,7 +9,6 @@ import { TbLogout2 } from "react-icons/tb";
 import { CiClock2 } from "react-icons/ci";
 import { FaMicrophone, FaStop, FaPaperPlane } from "react-icons/fa";
 import { FaComments } from "react-icons/fa";
-import mongoose from "mongoose";
 
 interface Message {
   _id?: string;
@@ -126,36 +125,6 @@ const Home: React.FC = () => {
     socket?.emit("joinRoom", roomName);
   };
 
-  // const sendMessage = (e: any) => {
-  //   e.preventDefault();
-  //   if (!message.trim()) return alert("Please write something down.");
-
-  //   if (socket && room) {
-  //     const tempId = new Date().getTime(); // Temporary ID for tracking the message
-  //     const messageData: Partial<Message> = {
-  //       // @ts-ignore
-  //       _id: tempId, // Temporary ID for the message
-  //       sender: {
-  //         _id: sender?._id ?? "",
-  //       },
-  //       content: message,
-  //       room: room,
-  //       publicName: publicName,
-  //       // @ts-ignore
-  //       timestamp: null, // Placeholder timestamp
-  //       isSending: true, // Flag to show sending status
-  //     };
-
-  //     // Add the message with a "sending" flag
-  //     setMessages((prevMessages) => [...prevMessages, messageData as Message]);
-  //     setMessage("");
-
-  //     socket.emit("sendMessage", messageData);
-  //   } else {
-  //     alert("Please select a room or user to send the message.");
-  //   }
-  // };
-
   const sendMessage = (e: any) => {
     e.preventDefault();
     if (!message.trim()) return alert("Please write something down.");
@@ -211,46 +180,6 @@ const Home: React.FC = () => {
       });
   };
 
-  // useEffect(() => {
-  //   if (room) {
-  //     setMessage("");
-
-  //     const formattedRoom = recipient?._id
-  //       ? `${sender?._id}-${recipient?._id}`
-  //       : publicName;
-
-  //     // Function to get message history
-  //     const getHistory = () => {
-  //       socket?.emit("getHistory", formattedRoom);
-  //       console.log('req');
-
-  //       // const handleSendHistory = (data: object) => {
-  //       //   console.log(data);
-  //       //   setMessages(data as Message[]);
-  //       // };
-
-  //       socket?.on("sendHistory", (messageData: Message[]) => {
-  //         setMessages(messageData as Message[]);
-  //       });
-
-  //       // Clean up: Remove the listener for "sendHistory" to avoid duplicate listeners
-  //       return () => {
-  //         // socket?.off("sendHistory", handleSendHistory);
-  //         socket?.on("sendHistory", (messageData: Message[]) => {
-  //           setMessages(messageData as Message[]);
-  //         });
-  //       };
-  //     };
-
-  //     // Call getHistory immediately and set up an interval
-  //     getHistory();
-  //     // const interval = setInterval(getHistory, 1000);
-
-  //     // // Clean up: clear the interval when the component unmounts or room changes
-  //     // return () => clearInterval(interval);
-  //   }
-  // }, [room, socket, sender?._id, recipient?._id]);
-
   useEffect(() => {
     if (room) {
       setMessage("");
@@ -268,11 +197,11 @@ const Home: React.FC = () => {
       // Get message history when the component mounts or room changes
 
       // Listen for new incoming messages in real-time
-      // const handleIncomingMessage = (newMessage: Message) => {
-      //   setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
-      // };
+      const handleIncomingMessage = (newMessage: Message) => {
+        setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
+      };
 
-      // socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
+      socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
 
       // Clean up the event listeners when the component unmounts or room changes
       return () => {
@@ -529,7 +458,10 @@ const Home: React.FC = () => {
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <h2>
             Chat Room:{" "}
-            {shownRoomName ? shownRoomName : room ? room : "No room joined"}
+            {
+              // @ts-ignore
+              shownRoomName.roomName ? shownRoomName.roomName : room ? room : "No room joined"
+            }
           </h2>
           <div
             style={{
@@ -571,7 +503,7 @@ const Home: React.FC = () => {
                       )}
                     </span> */}
                     <span className="timestamp">
-                      {msg.isSending ? (
+                      {msg.isSending || !msg.timestamp ? (
                         <CiClock2 size={10} /> // Sending icon
                       ) : msg.timestamp ? (
                         new Date(msg.timestamp).toLocaleTimeString() // Actual timestamp
