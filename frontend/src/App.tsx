@@ -1,21 +1,11 @@
-import axios from 'axios';
 // import './App.css';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 
 function App() {
   const navigate = useNavigate();
   const handleClick = () => {
     navigate('/chats');
   };
-
-  useEffect(() => {
-    axios
-      .get('http://localhost:3001/api/dashboard/whoami',{withCredentials: true})
-      .catch((err) => {
-        if (err?.response?.status === 401) navigate('/');
-      });
-  }, []);
 
   return (
     <>

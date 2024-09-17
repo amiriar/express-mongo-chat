@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,16 +9,19 @@ import { TbLogout2 } from "react-icons/tb";
 import { CiClock2 } from "react-icons/ci";
 import { FaMicrophone, FaStop, FaPaperPlane } from "react-icons/fa";
 import { FaComments } from "react-icons/fa";
+import mongoose from "mongoose";
 
 interface Message {
   _id?: string;
+  tempId: string;
   sender: Sender;
   recipient: Recipient;
   content: string;
   room: string;
   publicName: string;
-  timestamp?: Date;
+  timestamp?: Date | null;
   voiceUrl?: string;
+  isSending: boolean;
 }
 
 interface Sender {
@@ -47,10 +51,7 @@ const Home: React.FC = () => {
   >([]);
   // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
-  const [rooms, setRooms] = useState<Array<string>>([
-    "Public Room 1",
-    "Public Room 2",
-  ]);
+  const [rooms, setRooms] = useState<Array<string>>([]);
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("");
   const [offlineUsers, setOfflineUsers] = useState([]);
@@ -125,29 +126,66 @@ const Home: React.FC = () => {
     socket?.emit("joinRoom", roomName);
   };
 
+  // const sendMessage = (e: any) => {
+  //   e.preventDefault();
+  //   if (!message.trim()) return alert("Please write something down.");
+
+  //   if (socket && room) {
+  //     const tempId = new Date().getTime(); // Temporary ID for tracking the message
+  //     const messageData: Partial<Message> = {
+  //       // @ts-ignore
+  //       _id: tempId, // Temporary ID for the message
+  //       sender: {
+  //         _id: sender?._id ?? "",
+  //       },
+  //       content: message,
+  //       room: room,
+  //       publicName: publicName,
+  //       // @ts-ignore
+  //       timestamp: null, // Placeholder timestamp
+  //       isSending: true, // Flag to show sending status
+  //     };
+
+  //     // Add the message with a "sending" flag
+  //     setMessages((prevMessages) => [...prevMessages, messageData as Message]);
+  //     setMessage("");
+
+  //     socket.emit("sendMessage", messageData);
+  //   } else {
+  //     alert("Please select a room or user to send the message.");
+  //   }
+  // };
+
   const sendMessage = (e: any) => {
     e.preventDefault();
     if (!message.trim()) return alert("Please write something down.");
 
     if (socket && room) {
+      const tempId = uuidv4(); // Temporary ID for tracking the message
       const messageData: Partial<Message> = {
+        tempId, // Assign tempId here
         sender: {
           _id: sender?._id ?? "",
+          username: sender?.username ?? "unknown",
         },
         content: message,
         room: room,
         publicName: publicName,
+        isSending: true, // Mark as sending
       };
 
-      // Only include the recipient if it's a private message (recipient exists)
       if (recipient) {
         messageData.recipient = {
           _id: recipient._id,
         };
       }
 
-      socket.emit("sendMessage", messageData);
+      // Add the message to the state with 'isSending' status
       setMessages((prevMessages) => [...prevMessages, messageData as Message]);
+
+      // Emit the message to the server
+      socket.emit("sendMessage", messageData);
+
       setMessage("");
     } else {
       alert("Please select a room or user to send the message.");
@@ -173,38 +211,92 @@ const Home: React.FC = () => {
       });
   };
 
+  // useEffect(() => {
+  //   if (room) {
+  //     setMessage("");
+
+  //     const formattedRoom = recipient?._id
+  //       ? `${sender?._id}-${recipient?._id}`
+  //       : publicName;
+
+  //     // Function to get message history
+  //     const getHistory = () => {
+  //       socket?.emit("getHistory", formattedRoom);
+  //       console.log('req');
+
+  //       // const handleSendHistory = (data: object) => {
+  //       //   console.log(data);
+  //       //   setMessages(data as Message[]);
+  //       // };
+
+  //       socket?.on("sendHistory", (messageData: Message[]) => {
+  //         setMessages(messageData as Message[]);
+  //       });
+
+  //       // Clean up: Remove the listener for "sendHistory" to avoid duplicate listeners
+  //       return () => {
+  //         // socket?.off("sendHistory", handleSendHistory);
+  //         socket?.on("sendHistory", (messageData: Message[]) => {
+  //           setMessages(messageData as Message[]);
+  //         });
+  //       };
+  //     };
+
+  //     // Call getHistory immediately and set up an interval
+  //     getHistory();
+  //     // const interval = setInterval(getHistory, 1000);
+
+  //     // // Clean up: clear the interval when the component unmounts or room changes
+  //     // return () => clearInterval(interval);
+  //   }
+  // }, [room, socket, sender?._id, recipient?._id]);
+
   useEffect(() => {
     if (room) {
       setMessage("");
-
       const formattedRoom = recipient?._id
         ? `${sender?._id}-${recipient?._id}`
         : publicName;
 
       // Function to get message history
-      const getHistory = () => {
-        socket?.emit("getHistory", formattedRoom);
+      socket?.emit("getHistory", formattedRoom);
 
-        const handleSendHistory = (data: object) => {
-          setMessages(data as Message[]);
-        };
+      socket?.on("sendHistory", (messageData: Message[]) => {
+        setMessages(messageData as Message[]);
+      });
 
-        socket?.on("sendHistory", handleSendHistory);
+      // Get message history when the component mounts or room changes
 
-        // Clean up: Remove the listener for "sendHistory" to avoid duplicate listeners
-        return () => {
-          socket?.off("sendHistory", handleSendHistory);
-        };
+      // Listen for new incoming messages in real-time
+      // const handleIncomingMessage = (newMessage: Message) => {
+      //   setMessages((prevMessages) => [...prevMessages, newMessage]); // Add new message to the list
+      // };
+
+      // socket?.on("message", handleIncomingMessage); // Listen for 'message' event from backend
+
+      // Clean up the event listeners when the component unmounts or room changes
+      return () => {
+        socket?.off("sendHistory");
+        // socket?.off("message", handleIncomingMessage);
       };
-
-      // Call getHistory immediately and set up an interval
-      getHistory();
-      // const interval = setInterval(getHistory, 1000);
-
-      // // Clean up: clear the interval when the component unmounts or room changes
-      // return () => clearInterval(interval);
     }
-  }, [room, socket, sender?._id, recipient?._id, publicName]);
+  }, [room, socket, sender?._id, recipient?._id, setMessages]);
+
+  socket?.on("message", (messageData: Message) => {
+    setMessages((prevMessages) => {
+      // Check if the message was a "sending" message by matching tempId
+      const updatedMessages = prevMessages.map((msg) =>
+        msg.tempId === messageData.tempId ? messageData : msg
+      );
+
+      // If the message is new, add it to the message list
+      if (!updatedMessages.some((msg) => msg._id === messageData._id)) {
+        updatedMessages.push(messageData);
+      }
+
+      return updatedMessages;
+    });
+  });
 
   useEffect(() => {
     if (!socket) return;
@@ -217,12 +309,58 @@ const Home: React.FC = () => {
       setOfflineUsers(users);
     });
 
+    // socket?.on("message", (messageData: Message) => {
+    // setMessages((prevMessages) => {
+    // Check if the message was a "sending" message by matching tempId
+    // const updatedMessages = prevMessages.map((msg) =>
+    //   msg.tempId === messageData.tempId ? messageData : msg
+    // );
+
+    // // If the message is new, add it to the message list
+    // if (!updatedMessages.some((msg) => msg._id === messageData._id)) {
+    //   updatedMessages.push(messageData);
+    // }
+
+    // return updatedMessages;
+    // });
+    // setMessages((prevMessages) => [...prevMessages, messageData]);
+    // });
+    socket.on("message", (receivedMessage: Message) => {
+      console.log("newmesg: ", receivedMessage);
+
+      // setMessages((prevMessages) =>
+      //   prevMessages.map((msg) =>
+      //     msg.tempId === receivedMessage.tempId
+      //       ? { ...msg, ...receivedMessage, isSending: false } // Update the message
+      //       : msg
+      //   )
+      // );
+      setMessages((oldData: Message[]) => {
+        return [...oldData, receivedMessage];
+      });
+    });
+
     return () => {
       socket.off("onlineUsers");
       socket.off("offlineUsers");
       socket.off("voice-message"); // Clean up listener when component unmounts
+      socket?.off("message");
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.emit("login", sender?._id);
+
+      socket.on("userRooms", (rooms: any[]) => {
+        setRooms(rooms);
+      });
+
+      return () => {
+        socket.off("userRooms");
+      };
+    }
+  }, [socket, sender?._id]);
 
   const recordedChunksRef = useRef<Blob[]>([]);
 
@@ -299,7 +437,9 @@ const Home: React.FC = () => {
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      await axios.delete(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/${messageId}`);
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/${messageId}`
+      );
       console.log(`Message with ID ${messageId} deleted.`);
       // Refresh messages or remove the deleted message from the state
     } catch (error) {
@@ -328,15 +468,17 @@ const Home: React.FC = () => {
       <div className="sidebar">
         <h2>Chat Rooms</h2>
 
-        {rooms.map((room) => (
-          <button
-            key={room}
-            onClick={() => joinRoom(room)}
-            className="room-btn"
-          >
-            Join {room}
-          </button>
-        ))}
+        {rooms.map((room: any) => {
+          return (
+            <button
+              key={room?._id}
+              onClick={() => joinRoom(room)}
+              className="room-btn"
+            >
+              {room.roomName}
+            </button>
+          );
+        })}
 
         <h2 style={{ marginTop: "20px" }}>Users</h2>
         <ul className="users-list">
@@ -385,7 +527,6 @@ const Home: React.FC = () => {
 
       <div className="chat-area">
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          {/* <h2>Chat Room: {room || shownRoomName || "No room joined"}</h2> */}
           <h2>
             Chat Room:{" "}
             {shownRoomName ? shownRoomName : room ? room : "No room joined"}
@@ -407,262 +548,96 @@ const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* <div className="messages">
-          {messages.map((msg: Message) => (
-            <div key={msg._id} className="message-container">
-              <div
-                className={`message ${msg.sender._id === sender?._id ? "sent" : "received"}`}
-              >
-                <strong>{msg.sender.username}:</strong> {msg.content}
-                <span className="timestamp">
-                  {msg.timestamp ? (
-                    new Date(msg.timestamp).toLocaleTimeString()
-                  ) : (
-                    <CiClock2 size={10} />
-                  )}
-                </span>
-                <div className="message-options">
-                  <button
-                    style={{
-                      color: "red",
-                      width: "20px",
-                      position: "absolute",
-                      top: "-5px",
-                      right: msg.sender._id === sender?._id ? "100%" : "-35px",
-                    }}
-                    onClick={() => toggleOptions(msg._id ?? "")}
+        <div className="messages">
+          {room ? (
+            messages.map((msg: Message) => {
+              return (
+                <div
+                  // key={msg._id ? msg._id : Math.random() * 10000}
+                  key={msg._id || msg.tempId}
+                  className="message-container"
+                >
+                  <div
+                    className={`message ${
+                      msg.sender._id === sender?._id ? "sent" : "received"
+                    }`}
                   >
-                    ⋮
-                  </button>
-                  {selectedMessageId === msg._id && (
+                    <strong>{msg.sender.username}:</strong> {msg.content}
+                    {/* <span className="timestamp">
+                      {msg.timestamp ? (
+                        new Date(msg.timestamp).toLocaleTimeString()
+                      ) : (
+                        <CiClock2 size={10} />
+                      )}
+                    </span> */}
+                    <span className="timestamp">
+                      {msg.isSending ? (
+                        <CiClock2 size={10} /> // Sending icon
+                      ) : msg.timestamp ? (
+                        new Date(msg.timestamp).toLocaleTimeString() // Actual timestamp
+                      ) : (
+                        "Unknown Time" // Fallback or placeholder
+                      )}
+                    </span>
+                    <div className="message-options">
+                      <button
+                        style={{
+                          color: "red",
+                          width: "20px",
+                          position: "absolute",
+                          top: "-5px",
+                          right:
+                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                        }}
+                        onClick={() => toggleOptions(msg._id ?? "")}
+                      >
+                        ⋮
+                      </button>
+                      {selectedMessageId === msg._id && (
+                        <div
+                          className="options-dropdown"
+                          style={{
+                            position: "absolute",
+                            top: "35px",
+                            right:
+                              msg.sender._id === sender?._id ? "100%" : "-35px",
+                          }}
+                        >
+                          <button
+                            onClick={() => handleCopyMessage(msg.content)}
+                          >
+                            Copy
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMessage(msg._id ?? "")}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {msg.voiceUrl && (
                     <div
-                      className="options-dropdown"
                       style={{
-                        position: "absolute",
-                        top: "35px",
-                        right:
-                          msg.sender._id === sender?._id ? "100%" : "-35px",
+                        width: "100%",
+                        display: "flex",
+                        justifyContent:
+                          msg.sender._id === sender?._id ? "right" : "left",
                       }}
                     >
-                      <button onClick={() => handleCopyMessage(msg.content)}>
-                        Copy
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMessage(msg._id ?? "")}
-                      >
-                        Delete
-                      </button>
+                      <audio className="audio-player" controls>
+                        <source
+                          src={`http://localhost:3001/${msg.voiceUrl}`}
+                          type="audio/mp3"
+                        />
+                        Your browser does not support the audio element.
+                      </audio>
                     </div>
                   )}
                 </div>
-              </div>
-              {msg.voiceUrl && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent:
-                      msg.sender._id === sender?._id ? "right" : "left",
-                  }}
-                >
-                  <audio className="audio-player" controls>
-                    <source
-                      src={`http://localhost:3001/${msg.voiceUrl}`}
-                      type="audio/mp3"
-                    />
-                    Your browser does not support the audio element.
-                  </audio>
-                </div>
-              )}
-            </div>
-          ))}
-        </div> */}
-
-        {/* <div className="messages">
-          {room ? (
-            messages.map((msg: Message) => (
-              <div key={msg._id} className="message-container">
-                <div
-                  className={`message ${
-                    msg.sender._id === sender?._id ? "sent" : "received"
-                  }`}
-                >
-                  <strong>{msg.sender.username}:</strong> {msg.content}
-                  <span className="timestamp">
-                    {msg.timestamp ? (
-                      new Date(msg.timestamp).toLocaleTimeString()
-                    ) : (
-                      <CiClock2 size={10} />
-                    )}
-                  </span>
-                  <div className="message-options">
-                    <button
-                      style={{
-                        color: "red",
-                        width: "20px",
-                        position: "absolute",
-                        top: "-5px",
-                        right:
-                          msg.sender._id === sender?._id ? "100%" : "-35px",
-                      }}
-                      onClick={() => toggleOptions(msg._id ?? "")}
-                    >
-                      ⋮
-                    </button>
-                    {selectedMessageId === msg._id && (
-                      <div
-                        className="options-dropdown"
-                        style={{
-                          position: "absolute",
-                          top: "35px",
-                          right:
-                            msg.sender._id === sender?._id ? "100%" : "-35px",
-                        }}
-                      >
-                        <button onClick={() => handleCopyMessage(msg.content)}>
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMessage(msg._id ?? "")}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {msg.voiceUrl && (
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent:
-                        msg.sender._id === sender?._id ? "right" : "left",
-                    }}
-                  >
-                    <audio className="audio-player" controls>
-                      <source
-                        src={`http://localhost:3001/${msg.voiceUrl}`}
-                        type="audio/mp3"
-                      />
-                      Your browser does not support the audio element.
-                    </audio>
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="no-room-message" style={styles.noRoomMessage}>
-              <FaComments size={40} style={{ marginBottom: "10px" }} />
-              <p style={{ fontSize: "18px" }}>Join a room to start chatting!</p>
-            </div>
-          )}
-        </div>
-
-        <form
-          className="message-input"
-          onSubmit={sendMessage}
-          style={styles.form}
-        >
-          <input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="input-field"
-            style={styles.inputField}
-            disabled={room ? false : true}
-          />
-          <div
-            className="voice-message-controls"
-            style={styles.voiceMessageControls}
-          >
-            {isRecording ? (
-              <FaStop onClick={handleStopRecording} style={styles.icon} />
-            ) : (
-              <FaMicrophone
-                onClick={handleStartRecording}
-                style={styles.icon}
-              />
-            )}
-          </div>
-          <button type="submit" className="send-btn" style={styles.sendBtn}>
-            <FaPaperPlane />
-          </button>
-        </form> */}
-
-        <div className="messages">
-          {room ? (
-            messages.map((msg: Message) => (
-              <div key={msg._id} className="message-container">
-                <div
-                  className={`message ${
-                    msg.sender._id === sender?._id ? "sent" : "received"
-                  }`}
-                >
-                  <strong>{msg.sender.username}:</strong> {msg.content}
-                  <span className="timestamp">
-                    {msg.timestamp ? (
-                      new Date(msg.timestamp).toLocaleTimeString()
-                    ) : (
-                      <CiClock2 size={10} />
-                    )}
-                  </span>
-                  <div className="message-options">
-                    <button
-                      style={{
-                        color: "red",
-                        width: "20px",
-                        position: "absolute",
-                        top: "-5px",
-                        right:
-                          msg.sender._id === sender?._id ? "100%" : "-35px",
-                      }}
-                      onClick={() => toggleOptions(msg._id ?? "")}
-                    >
-                      ⋮
-                    </button>
-                    {selectedMessageId === msg._id && (
-                      <div
-                        className="options-dropdown"
-                        style={{
-                          position: "absolute",
-                          top: "35px",
-                          right:
-                            msg.sender._id === sender?._id ? "100%" : "-35px",
-                        }}
-                      >
-                        <button onClick={() => handleCopyMessage(msg.content)}>
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMessage(msg._id ?? "")}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {msg.voiceUrl && (
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent:
-                        msg.sender._id === sender?._id ? "right" : "left",
-                    }}
-                  >
-                    <audio className="audio-player" controls>
-                      <source
-                        src={`http://localhost:3001/${msg.voiceUrl}`}
-                        type="audio/mp3"
-                      />
-                      Your browser does not support the audio element.
-                    </audio>
-                  </div>
-                )}
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="no-room-message" style={styles.noRoomMessage}>
               <FaComments size={40} style={{ marginBottom: "10px" }} />
@@ -671,43 +646,6 @@ const Home: React.FC = () => {
           )}
           <div ref={chatEndRef} />
         </div>
-
-        {/* Message input and controls */}
-        {/* <form
-          className="message-input"
-          onSubmit={sendMessage}
-          style={styles.form}
-        >
-          <input
-            value={room ? "" : "Join a room to send a message!"}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="input-field"
-            style={styles.inputField}
-            disabled={!room} // Disable input if no room is joined
-          />
-          <div
-            className="voice-message-controls"
-            style={styles.voiceMessageControls}
-          >
-            {isRecording ? (
-              <FaMicrophone onClick={handleStopRecording} style={styles.icon} />
-            ) : (
-              <FaMicrophone
-                onClick={handleStartRecording}
-                style={styles.icon}
-              />
-            )}
-          </div>
-          <button
-            type="submit"
-            className="send-btn"
-            style={styles.sendBtn}
-            disabled={!room} // Disable button if no room is joined
-          >
-            <FaPaperPlane />
-          </button>
-        </form> */}
 
         <form
           className="message-input"
@@ -734,13 +672,11 @@ const Home: React.FC = () => {
                   boxSizing: "border-box",
                   padding: "5px",
                   cursor: "pointer",
-                  display: room ? "flex" : "none"
+                  display: room ? "flex" : "none",
                 }}
                 onClick={handleStartRecording}
               >
-                <FaMicrophone
-                  style={styles.icon}
-                />
+                <FaMicrophone style={styles.icon} />
               </div>
             ) : (
               <div
@@ -748,13 +684,11 @@ const Home: React.FC = () => {
                   boxSizing: "border-box",
                   padding: "5px",
                   cursor: "pointer",
-                  display: room ? "flex" : "none"
+                  display: room ? "flex" : "none",
                 }}
                 onClick={handleStopRecording}
               >
-                <FaStop
-                  style={styles.icon}
-                />
+                <FaStop style={styles.icon} />
               </div>
             )}
           </div>

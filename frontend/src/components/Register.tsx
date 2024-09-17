@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import "./Register.css"; // We'll add some custom styling here
+import "./Register.css"; 
 
 const Register: React.FC = () => {
   const [phone, setPhone] = useState("");
@@ -51,7 +51,7 @@ const Register: React.FC = () => {
           placeholder="Enter your phone number"
           className={`input-field ${error ? "error" : ""}`}
         />
-        <button onClick={requestOtp} disabled={isLoading}>
+        <button onClick={requestOtp} disabled={isLoading} className="button">
           {isLoading ? "Sending OTP..." : "Request OTP"}
         </button>
         {message && (

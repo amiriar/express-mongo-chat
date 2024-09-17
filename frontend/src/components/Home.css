@@ -63,7 +63,7 @@ h2 {
   word-wrap: break-word;
 }
 
-/* Style for messages sent by the current user (align to the right) */
+/* Style for messages sent by the current user (align to the right) */  
 .message.sent {
   align-self: flex-end;
   background-color: #a8dadc; /* Light blue color for sent messages */
@@ -150,7 +150,7 @@ h2 {
   padding: 10px;
   border-radius: 5px;
   border: 1px solid #ddd;
-  margin-right: 10px;
+  /* margin-right: 10px; */
 }
 
 .send-btn {
