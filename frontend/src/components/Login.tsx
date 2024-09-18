@@ -24,8 +24,8 @@ const Login: React.FC = () => {
       await axios.post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`, { phone, otp }, { withCredentials: true });
       setMessage("Login successful.");
       setError(false);
-      // navigate("/chats");
-      navigate("/settings");
+      navigate("/chats");
+      // navigate("/settings");
     } catch (error) {
       setMessage("Invalid OTP or login failed.");
       setError(true);

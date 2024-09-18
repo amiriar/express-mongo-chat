@@ -117,6 +117,7 @@ const Home: React.FC = () => {
       })
       .then((res) => {
         setSender(res?.data);
+        if (!res?.data.username) navigate("/settings");
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -242,9 +243,11 @@ const Home: React.FC = () => {
       });
 
       return () => {
-        // socket?.off("newRoomResponse");
         socket?.off("deleteMessageResponse");
         socket?.off("sendHistory");
+        // socket?.off("voice-message-response");
+        socket?.off("newRoomResponse");
+        socket?.off("message");
       };
     }
   }, [room, socket, sender?._id, recipient?._id, setMessages]);
@@ -263,12 +266,6 @@ const Home: React.FC = () => {
     });
   });
 
-  socket?.on("voice-message-response", (messageData: Message) => {
-    console.log(messageData);
-
-    setMessages((prevMessages) => [...prevMessages, messageData]);
-  });
-
   socket?.on("newRoomResponse", (roomData: Room[]) => {
     const userRooms = roomData.filter((room) =>
       room.participants.some(
@@ -280,6 +277,26 @@ const Home: React.FC = () => {
       setRooms(() => [...userRooms]);
     }
   });
+
+  useEffect(() => {
+    const handleVoiceMessageResponse = (messageData: any) => {
+      setMessages((prevMessages) => {
+        const messageExists = prevMessages.some(
+          (msg) => msg._id === messageData._id
+        );
+        if (!messageExists) {
+          return [...prevMessages, messageData];
+        }
+        return prevMessages; 
+      });
+    };
+
+    socket?.on("voice-message-response", handleVoiceMessageResponse);
+
+    return () => {
+      socket?.off("voice-message-response", handleVoiceMessageResponse);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;
@@ -506,7 +523,7 @@ const Home: React.FC = () => {
                     {user._id === sender?._id ? (
                       "Saved Messages"
                     ) : (
-                      <span>{user.username} (Online)</span>
+                      <span>{user.username}</span>
                     )}
                   </span>
                   <span>(Online)</span>
@@ -516,8 +533,11 @@ const Home: React.FC = () => {
           </ul>
 
           {/* Offline Users */}
-          <div className="offline-users">
-            <h3>Offline Users</h3>
+          <div
+            className="offline-users"
+            style={{ marginTop: "15px", marginBottom: "20px" }}
+          >
+            <h3 style={{ marginBottom: "15px" }}>Offline Users</h3>
             <ul className="users-list">
               {offlineUsers.map((user: any) => (
                 <li
@@ -648,7 +668,7 @@ const Home: React.FC = () => {
           </Box>
         </Modal>
 
-        <div className="messages">
+        <div className="messages" style={{ overflowY: "scroll" }}>
           {room ? (
             messages.map((msg: Message) => {
               return (
@@ -668,7 +688,15 @@ const Home: React.FC = () => {
                     >
                       {msg?.sender?.username}
                     </p>
-                    <p style={{ textAlign: "right", margin: "0px" }}>
+                    <p
+                      style={{
+                        textAlign:
+                          msg?.sender?._id === sender?._id ? "right" : "left",
+                        margin: "5px 0 0 0",
+                        fontFamily: "IranYekan",
+                        fontSize: "0.9rem",
+                      }}
+                    >
                       {msg?.content}
                     </p>
                     <p

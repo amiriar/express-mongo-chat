@@ -9,7 +9,9 @@
   padding: 20px;
   background-color: #f4f4f4;
   border-right: 1px solid #ddd;
+  overflow-y: scroll;
 }
+
 
 .room-btn {
   display: block;
@@ -85,23 +87,21 @@ h2 {
   word-wrap: break-word;
 }
 
-/* Style for messages sent by the current user (align to the right) */  
 .message.sent {
   align-self: flex-end;
-  background-color: #a8dadc; /* Light blue color for sent messages */
+  background-color: #a8dadc; 
 }
 
-/* Style for messages received (align to the left) */
 .message.received {
   align-self: flex-start;
-  background-color: #ecf0f1; /* Default background color for received messages */
+  background-color: #ecf0f1;
 }
+
 .messages {
   flex-grow: 1;
   border: 1px solid #ddd;
   padding: 10px;
-  overflow-y: auto;
-  max-height: 500px;
+  max-height: 550px;
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
@@ -117,7 +117,7 @@ h2 {
 .message {
   /* margin-bottom: 10px; */
   /* padding: 10px; */
-  border-radius: 5px;
+  border-radius: 10px;
   background-color: #ecf0f1;
   position: relative;
   max-width: 60%;

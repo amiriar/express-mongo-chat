@@ -330,23 +330,18 @@ export const handleSocketConnections = (io: Server) => {
       try {
         const { mp3Url, room, senderId } = data;
 
-        // Check if mp3Url and room are provided
         if (!mp3Url || !room || !senderId) {
           throw new Error("Missing data");
         }
 
-        // Create a message object with the URL
         const messageData = {
           voiceUrl: mp3Url,
-          room: room._id,
+          room: room._id ? room._id : room,
           sender: senderId,
-          // Add other necessary message data here
         };
 
         const newMessage = await ChatMessageModel.create(messageData);
-        console.log(newMessage);
 
-        // Find sender and recipient details
         const sender = await UserModel.findById(
           newMessage.sender,
           "username profile"
@@ -371,9 +366,10 @@ export const handleSocketConnections = (io: Server) => {
               }
             : null,
         };
-
-        // Emit the message to the room
-        io.to(room._id).emit("voice-message-response", messageToSend);
+        io.to(room._id ? room._id : room).emit(
+          "voice-message-response",
+          messageToSend
+        );
       } catch (error) {
         console.error("Error processing voice message:", error);
       }
