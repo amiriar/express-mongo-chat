@@ -1,112 +1,28 @@
-import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import "./Home.css";
 import { IoMdSettings } from "react-icons/io";
-import { TbLogout2 } from "react-icons/tb";
-import { CiClock2 } from "react-icons/ci";
-import {
-  FaMicrophone,
-  FaStop,
-  FaPaperPlane,
-  FaPlus,
-  FaUserPlus,
-} from "react-icons/fa";
-import {
-  Modal,
-  Box,
-  Button,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-} from "@mui/material";
-import { FaComments } from "react-icons/fa";
-import mongoose from "mongoose";
-
-interface Message {
-  _id?: string;
-  tempId: string;
-  sender: Sender;
-  recipient: Recipient;
-  content: string;
-  room: string;
-  publicName: string;
-  timestamp?: Date | null;
-  voiceUrl?: string;
-  isSending: boolean;
-}
-
-interface Sender {
-  _id: string;
-  username?: string;
-  phone?: string;
-  profile?: string;
-}
-
-interface Recipient {
-  _id: string;
-  username?: string;
-  phone?: string;
-  profile?: string;
-}
-
-interface Room {
-  _id: string;
-  roomName: string;
-  participants: mongoose.Types.ObjectId[];
-  isGroup: boolean;
-  createdAt: Date;
-  isPublic: boolean;
-}
-
-interface IUser {
-  _id: string;
-  username: string;
-  profile: string;
-  lastSeen?: Date;
-}
+import { FaPlus } from "react-icons/fa";
+import { Sender, Recipient, Message, Room } from "../modules/types/types";
+import OnlineUsers from "../modules/OnlineUsers";
+import OfflineUsers from "../modules/OfflineUsers";
+import ChatArea from "../modules/ChatArea";
+import checkPageStatus from "../shared/notifications";
 
 const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
-
-  const [message, setMessage] = useState<string>(""); // message input
+  const [message, setMessage] = useState<string>("");
   const [publicName, setPublicName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<typeof Socket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
-  // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
-  // const [rooms, setRooms] = useState<Array<string>>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
-    null
-  );
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const [openModal, setOpenModal] = useState(false);
-
-  // Open/Close Modal
-  const handleOpenModal = () => setOpenModal(true);
-  const handleCloseModal = () => setOpenModal(false);
-
-  const [nonParticipantOnlineUsers, setNonParticipantOnlineUsers] = useState(
-    []
-  );
-  const [nonParticipantOfflineUsers, setNonParticipantOfflineUsers] = useState(
-    []
-  );
 
   const navigate = useNavigate();
 
@@ -118,6 +34,7 @@ const Home: React.FC = () => {
       .then((res) => {
         setSender(res?.data);
         if (!res?.data.username) navigate("/settings");
+        localStorage.setItem("userId", sender?._id ?? "");
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -179,42 +96,6 @@ const Home: React.FC = () => {
     socket?.emit("joinRoom", roomName);
   };
 
-  const sendMessage = (e: any) => {
-    e.preventDefault();
-    if (!message.trim()) return alert("Please write something down.");
-
-    if (socket && room) {
-      const tempId = uuidv4();
-      const messageData: Partial<Message> = {
-        tempId,
-        sender: {
-          _id: sender?._id ?? "",
-          username: sender?.username ?? "unknown",
-        },
-        content: message,
-        room: room,
-        publicName: publicName,
-        isSending: true,
-      };
-
-      if (recipient) {
-        messageData.recipient = {
-          _id: recipient._id,
-        };
-      }
-
-      // Add the message to the state with 'isSending' status
-      // setMessages((prevMessages) => [...prevMessages, messageData as Message]);
-
-      // Emit the message to the server
-      socket.emit("sendMessage", messageData);
-
-      setMessage("");
-    } else {
-      alert("Please select a room or user to send the message.");
-    }
-  };
-
   const settingHandler = () => {
     navigate("/settings");
   };
@@ -262,6 +143,9 @@ const Home: React.FC = () => {
         updatedMessages.push(messageData);
       }
 
+      if (recipient && sender?._id !== messageData.recipient._id) {
+        checkPageStatus(messageData.content, messageData.sender ?? "");
+      }
       return updatedMessages;
     });
   });
@@ -287,7 +171,7 @@ const Home: React.FC = () => {
         if (!messageExists) {
           return [...prevMessages, messageData];
         }
-        return prevMessages; 
+        return prevMessages;
       });
     };
 
@@ -329,103 +213,6 @@ const Home: React.FC = () => {
     }
   }, [socket, sender?._id]);
 
-  const recordedChunksRef = useRef<Blob[]>([]);
-
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    recordedChunksRef.current = [];
-
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-
-        mediaRecorder.ondataavailable = (event) => {
-          console.log("Data available event triggered", event.data);
-          if (event.data.size > 0) {
-            recordedChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.start();
-      })
-      .catch((err) => console.error("Error accessing microphone:", err));
-  };
-
-  const handleStopRecording = () => {
-    setIsRecording(false);
-
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-
-      mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(recordedChunksRef.current, {
-          type: "audio/webm",
-        });
-
-        if (blob.size === 0) {
-          console.error("Blob is empty. Check recordedChunks.");
-          return;
-        }
-
-        // Convert blob to FormData to send it as a file
-        const formData = new FormData();
-        formData.append("voiceMessage", blob, "voice-message.webm");
-
-        const senderJson = JSON.stringify(sender?._id);
-        const recipientJson = JSON.stringify(recipient && recipient?._id);
-        const roomJson = JSON.stringify(room);
-
-        formData.append("sender", senderJson);
-        if (recipient) formData.append("recipient", recipientJson);
-        formData.append("room", roomJson);
-
-        try {
-          const response = await axios.post(
-            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/messages/upload-voice`,
-            formData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-              withCredentials: true,
-            }
-          );
-
-          const mp3Url = response.data.filePath;
-          socket?.emit("voice-message", {
-            mp3Url,
-            room,
-            senderId: sender?._id,
-          });
-        } catch (error) {
-          console.error("Error uploading voice message:", error);
-        }
-      };
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    socket?.emit("deleteMessage", messageId);
-  };
-
-  const handleCopyMessage = (message: string) => {
-    navigator.clipboard.writeText(message);
-  };
-
-  const toggleOptions = (messageId: string) => {
-    setSelectedMessageId(selectedMessageId === messageId ? null : messageId);
-  };
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const addRoomHandler = () => {
     const roomName = prompt("What is the name of the room?");
     if (roomName?.trim()) {
@@ -437,34 +224,6 @@ const Home: React.FC = () => {
     } else {
       alert("please write something down...");
     }
-  };
-
-  const showModalHandler = (room: Room) => {
-    const onlineUsersNotInRoom = onlineUsers.filter(
-      (user: any) =>
-        !room.participants.some(
-          (participantId: any) => participantId.toString() === user._id
-        )
-    );
-
-    const offlineUsersNotInRoom = offlineUsers.filter(
-      (user: any) =>
-        !room.participants.some(
-          (participantId: any) => participantId.toString() === user._id
-        )
-    );
-
-    setNonParticipantOnlineUsers(onlineUsersNotInRoom);
-    setNonParticipantOfflineUsers(offlineUsersNotInRoom);
-
-    setOpenModal(true);
-  };
-
-  const addUserToRoom = (data: any) => {
-    const { userId, room } = data;
-    console.log(userId);
-    console.log(room);
-    socket?.emit("joinRoom", data);
   };
 
   return (
@@ -501,7 +260,7 @@ const Home: React.FC = () => {
           <h2 style={{ marginTop: "20px" }}>Users</h2>
 
           {/* Online Users */}
-          <ul className="users-list">
+          {/* <ul className="users-list">
             {onlineUsers?.map((user: any) => (
               <li
                 key={user._id}
@@ -530,10 +289,15 @@ const Home: React.FC = () => {
                 </div>
               </li>
             ))}
-          </ul>
+          </ul> */}
+          <OnlineUsers
+            onlineUsers={onlineUsers}
+            pvHandler={pvHandler}
+            sender={sender}
+          />
 
           {/* Offline Users */}
-          <div
+          {/* <div
             className="offline-users"
             style={{ marginTop: "15px", marginBottom: "20px" }}
           >
@@ -561,11 +325,12 @@ const Home: React.FC = () => {
                 </li>
               ))}
             </ul>
-          </div>
+          </div> */}
+          <OfflineUsers offlineUsers={offlineUsers} pvHandler={pvHandler} />
         </div>
       </div>
 
-      <div className="chat-area">
+      {/* <div className="chat-area">
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <h2>
             Chat Room:{" "}
@@ -849,73 +614,23 @@ const Home: React.FC = () => {
             <FaPaperPlane />
           </button>
         </form>
-      </div>
+      </div> */}
+
+      <ChatArea
+        message={message}
+        setMessage={setMessage}
+        messages={messages}
+        shownRoomName={shownRoomName}
+        room={room}
+        recipient={recipient}
+        sender={sender}
+        socket={socket}
+        onlineUsers={onlineUsers}
+        offlineUsers={offlineUsers}
+        publicName={publicName}
+      />
     </div>
   );
-};
-
-const styles = {
-  noRoomMessage: {
-    display: "flex" as const,
-    flexDirection: "column" as const,
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-    height: "100%",
-    textAlign: "center" as const,
-    color: "#888",
-  },
-  form: {
-    display: "flex",
-    alignItems: "center",
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "#f0f0f0",
-    borderRadius: "10px",
-  },
-  inputField: {
-    flex: 8,
-    padding: "10px",
-    border: "none",
-    borderRadius: "5px",
-    marginRight: "10px",
-    fontSize: "16px",
-  },
-  voiceMessageControls: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    cursor: "pointer",
-    marginRight: "10px",
-  },
-  sendBtn: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#4CAF50",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    padding: "10px",
-    cursor: "pointer",
-  },
-  icon: {
-    fontSize: "24px",
-    color: "#333",
-  },
-};
-
-const ModalStyle = {
-  position: "absolute" as "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
 };
 
 export default Home;
