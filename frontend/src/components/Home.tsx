@@ -657,10 +657,28 @@ const Home: React.FC = () => {
                     className={`message ${
                       msg?.sender?._id === sender?._id ? "sent" : "received"
                     }`}
+                    style={{ minWidth: "200px" }}
                   >
-                    <strong>{msg?.sender?.username}</strong>
-                    <p style={{ textAlign: "right" }}>{msg?.content}</p>
-                    <span className="timestamp">
+                    <p
+                      style={{
+                        textAlign:
+                          msg?.sender?._id === sender?._id ? "right" : "left",
+                        marginTop: "0px",
+                      }}
+                    >
+                      {msg?.sender?.username}
+                    </p>
+                    <p style={{ textAlign: "right", margin: "0px" }}>
+                      {msg?.content}
+                    </p>
+                    <p
+                      className="timestamp"
+                      style={{
+                        textAlign:
+                          msg?.sender?._id === sender?._id ? "left" : "right",
+                        margin: "5px 0 0 0",
+                      }}
+                    >
                       {msg.isSending || !msg.timestamp ? (
                         <CiClock2 size={10} />
                       ) : msg.timestamp ? (
@@ -668,7 +686,7 @@ const Home: React.FC = () => {
                       ) : (
                         "Unknown Time"
                       )}
-                    </span>
+                    </p>
                     <div className="message-options">
                       <button
                         style={{
