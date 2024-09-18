@@ -14,6 +14,17 @@ import {
   FaPlus,
   FaUserPlus,
 } from "react-icons/fa";
+import {
+  Modal,
+  Box,
+  Button,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
+} from "@mui/material";
 import { FaComments } from "react-icons/fa";
 import mongoose from "mongoose";
 
@@ -53,6 +64,13 @@ interface Room {
   isPublic: boolean;
 }
 
+interface IUser {
+  _id: string;
+  username: string;
+  profile: string;
+  lastSeen?: Date;
+}
+
 const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
@@ -61,9 +79,7 @@ const Home: React.FC = () => {
   const [publicName, setPublicName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<typeof Socket | null>(null);
-  const [onlineUsers, setOnlineUsers] = useState<
-    Array<{ username: string; profile: string; userId: string }>
-  >([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, Date>>({});
   // const [rooms, setRooms] = useState<Array<string>>([]);
@@ -78,6 +94,19 @@ const Home: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const [openModal, setOpenModal] = useState(false);
+
+  // Open/Close Modal
+  const handleOpenModal = () => setOpenModal(true);
+  const handleCloseModal = () => setOpenModal(false);
+
+  const [nonParticipantOnlineUsers, setNonParticipantOnlineUsers] = useState(
+    []
+  );
+  const [nonParticipantOfflineUsers, setNonParticipantOfflineUsers] = useState(
+    []
+  );
 
   const navigate = useNavigate();
 
@@ -212,12 +241,8 @@ const Home: React.FC = () => {
         }
       });
 
-      socket?.on("newRoomResponse", (roomData: Room) => {
-        setRooms((prevRooms) => [...prevRooms, roomData]);
-      });
-
       return () => {
-        socket?.off("newRoomResponse");
+        // socket?.off("newRoomResponse");
         socket?.off("deleteMessageResponse");
         socket?.off("sendHistory");
       };
@@ -242,6 +267,18 @@ const Home: React.FC = () => {
     console.log(messageData);
 
     setMessages((prevMessages) => [...prevMessages, messageData]);
+  });
+
+  socket?.on("newRoomResponse", (roomData: Room[]) => {
+    const userRooms = roomData.filter((room) =>
+      room.participants.some(
+        (participantId) => participantId.toString() === sender?._id
+      )
+    );
+
+    if (userRooms.length > 0) {
+      setRooms(() => [...userRooms]);
+    }
   });
 
   useEffect(() => {
@@ -385,8 +422,32 @@ const Home: React.FC = () => {
     }
   };
 
-  const addUserToRoomHandler = (room: Room) => {
-    console.log(room); // logic HERE
+  const showModalHandler = (room: Room) => {
+    const onlineUsersNotInRoom = onlineUsers.filter(
+      (user: any) =>
+        !room.participants.some(
+          (participantId: any) => participantId.toString() === user._id
+        )
+    );
+
+    const offlineUsersNotInRoom = offlineUsers.filter(
+      (user: any) =>
+        !room.participants.some(
+          (participantId: any) => participantId.toString() === user._id
+        )
+    );
+
+    setNonParticipantOnlineUsers(onlineUsersNotInRoom);
+    setNonParticipantOfflineUsers(offlineUsersNotInRoom);
+
+    setOpenModal(true);
+  };
+
+  const addUserToRoom = (data: any) => {
+    const { userId, room } = data;
+    console.log(userId);
+    console.log(room);
+    socket?.emit("joinRoom", data);
   };
 
   return (
@@ -419,33 +480,42 @@ const Home: React.FC = () => {
           Add a Room
         </button>
 
-        <h2 style={{ marginTop: "20px" }}>Users</h2>
-        <ul className="users-list">
-          {onlineUsers?.map((user: any) => (
-            <li
-              key={user._id}
-              onClick={() => pvHandler(user)}
-              style={{ cursor: "pointer", padding: "2px" }}
-            >
-              <img
-                src={
-                  user._id !== sender?._id
-                    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
-                    : `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg  `
-                }
-                alt="Profile"
-                className="avatar"
-              />
-              <span>
-                {user._id === sender?._id ? (
-                  "Saved Messages"
-                ) : (
-                  <span>{user.username} (Online)</span>
-                )}
-              </span>
-            </li>
-          ))}
+        <div>
+          <h2 style={{ marginTop: "20px" }}>Users</h2>
 
+          {/* Online Users */}
+          <ul className="users-list">
+            {onlineUsers?.map((user: any) => (
+              <li
+                key={user._id}
+                onClick={() => pvHandler(user)}
+                style={{ cursor: "pointer", padding: "2px" }}
+              >
+                <img
+                  src={
+                    user._id === sender?._id
+                      ? `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg`
+                      : `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
+                  }
+                  alt="Profile"
+                  className="avatar"
+                />
+
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span>
+                    {user._id === sender?._id ? (
+                      "Saved Messages"
+                    ) : (
+                      <span>{user.username} (Online)</span>
+                    )}
+                  </span>
+                  <span>(Online)</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Offline Users */}
           <div className="offline-users">
             <h3>Offline Users</h3>
             <ul className="users-list">
@@ -460,18 +530,19 @@ const Home: React.FC = () => {
                     alt="Profile"
                     className="avatar"
                   />
-                  <span>{user.username} (Offline)</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span>{user.username}</span>
+                    <span>
+                      {user.lastSeen
+                        ? ` ${new Date(user.lastSeen).toLocaleString()}`
+                        : " (Offline)"}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
-
-          {Object.entries(lastSeen).map(([userId, timestamp]) => (
-            <li key={userId}>
-              {userId} (Last seen: {new Date(timestamp).toLocaleString()})
-            </li>
-          ))}
-        </ul>
+        </div>
       </div>
 
       <div className="chat-area">
@@ -493,7 +564,7 @@ const Home: React.FC = () => {
                 display: "flex",
                 gap: "15px",
               }}
-              onClick={() => addUserToRoomHandler(shownRoomName)}
+              onClick={() => showModalHandler(shownRoomName)}
             >
               <FaUserPlus size={25} />
             </div>
@@ -501,6 +572,81 @@ const Home: React.FC = () => {
             ""
           )}
         </div>
+        <Modal
+          open={openModal}
+          onClose={handleCloseModal}
+          aria-labelledby="modal-title"
+        >
+          <Box sx={ModalStyle}>
+            <Typography id="modal-title" variant="h6" component="h2">
+              Add Users to Room
+            </Typography>
+
+            <Typography variant="subtitle1" sx={{ mt: 2 }}>
+              Online Users
+            </Typography>
+            <List>
+              {nonParticipantOnlineUsers.length > 0 ? (
+                nonParticipantOnlineUsers.map((user: IUser) => (
+                  <ListItem
+                    key={user._id}
+                    sx={{ display: "flex", justifyContent: "space-between" }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                        alt={user.username}
+                      />
+                    </ListItemAvatar>
+                    <ListItemText primary={user.username} />
+                    <Button
+                      onClick={() => addUserToRoom({ userId: user._id, room })}
+                      sx={{ width: "auto" }}
+                    >
+                      <FaUserPlus size={20} />
+                    </Button>
+                  </ListItem>
+                ))
+              ) : (
+                <Typography>No online users to add.</Typography>
+              )}
+            </List>
+
+            <Typography variant="subtitle1" sx={{ mt: 2 }}>
+              Offline Users
+            </Typography>
+            <List>
+              {nonParticipantOfflineUsers.length > 0 ? (
+                nonParticipantOfflineUsers.map((user: IUser) => (
+                  <ListItem
+                    key={user._id}
+                    sx={{ display: "flex", justifyContent: "space-between" }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                        alt={user.username}
+                      />
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={user.username}
+                      // @ts-ignore
+                      secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
+                    />
+                    <Button
+                      onClick={() => addUserToRoom({ userId: user._id, room })}
+                      sx={{ width: "auto" }}
+                    >
+                      <FaUserPlus size={20} />
+                    </Button>
+                  </ListItem>
+                ))
+              ) : (
+                <Typography>No offline users to add.</Typography>
+              )}
+            </List>
+          </Box>
+        </Modal>
 
         <div className="messages">
           {room ? (
@@ -712,6 +858,18 @@ const styles = {
     fontSize: "24px",
     color: "#333",
   },
+};
+
+const ModalStyle = {
+  position: "absolute" as "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: 400,
+  bgcolor: "background.paper",
+  border: "2px solid #000",
+  boxShadow: 24,
+  p: 4,
 };
 
 export default Home;

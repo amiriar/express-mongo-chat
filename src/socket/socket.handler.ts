@@ -40,8 +40,18 @@ export const handleSocketConnections = (io: Server) => {
       await ChatMessageModel.updateOne({ _id: messageId }, { seen: true });
     });
 
-    socket.on("joinRoom", (roomName) => {
-      socket.join(roomName);
+    socket.on("joinRoom", async (data) => {
+      const { userId, room } = data;
+      if (!userId) {
+        socket.join(data);
+      } else {
+        await RoomModel.updateOne(
+          { _id: room._id },
+          { $addToSet: { participants: userId } }
+        );
+        const rooms = await RoomModel.find({ participants: { $in: [userId] } });
+        io.emit("newRoomResponse", rooms);
+      }
     });
 
     socket.on("leaveRoom", (roomName) => {
@@ -155,18 +165,28 @@ export const handleSocketConnections = (io: Server) => {
     socket.on("newRoom", async (data: any) => {
       const { roomName, senderId } = data;
 
-      const newRoom = await RoomModel.create({
+      await RoomModel.create({
         roomName,
         participants: [senderId],
         isGroup: true,
         isPublic: false,
       });
 
-      io.emit("newRoomResponse", newRoom)
+      const rooms = await RoomModel.find({
+        $or: [
+          { isPublic: true },
+          { participants: { $in: [User?._id?.toString()] } },
+        ],
+      }).select("_id roomName isGroup createdAt participants");
+
+      io.emit("newRoomResponse", rooms);
     });
 
     const sendOfflineUsers = async (socket: Socket) => {
-      const allUsers = await UserModel.find({}, "_id username profile");
+      const allUsers = await UserModel.find(
+        {},
+        "_id username profile lastSeen"
+      );
 
       const offlineUsers = allUsers.filter(
         (user: any) => !onlineUsers.has(user._id.toString())
@@ -179,7 +199,7 @@ export const handleSocketConnections = (io: Server) => {
       if (user) {
         User = await UserModel.findOne(
           { _id: user?._id },
-          { username: 1, phoneNumber: 1, id: 1, profile: 1 }
+          { username: 1, phoneNumber: 1, id: 1, profile: 1, lastSeen: 1 }
         );
 
         onlineUsers.set(userId, User);
@@ -233,9 +253,8 @@ export const handleSocketConnections = (io: Server) => {
           ],
         }).select("_id roomName isGroup createdAt participants");
 
-        socket.emit("userRooms", userRooms); // Emit all user-specific rooms
+        socket.emit("userRooms", userRooms);
 
-        // Join the user to each of their private/group rooms
         userRooms.forEach((room: any) => {
           socket.join(room._id.toString());
         });

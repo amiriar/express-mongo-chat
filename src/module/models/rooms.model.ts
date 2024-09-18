@@ -9,7 +9,7 @@ export interface IRoom extends Document {
 }
 
 const RoomSchema = new Schema<IRoom>({
-  roomName: { type: String, required: true, unique: true, maxlength: 15 }, // Room name should be unique
+  roomName: { type: String, required: true, maxlength: 15 }, // Room name should be unique
   participants: [{ type: Schema.Types.ObjectId, ref: "User" }], // Array of participants (ObjectId referencing User model)
   isGroup: { type: Boolean, default: false }, // Boolean indicating if it's a group room
   isPublic: { type: Boolean, default: false }, // Boolean indicating if it's a public room
