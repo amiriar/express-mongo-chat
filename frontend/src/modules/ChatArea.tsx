@@ -225,7 +225,7 @@ function ChatArea({
   }, [messages]);
 
   return (
-    <div className="chat-area">
+    <div className="chat-area" style={{ fontFamily: "Poppins" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>
           Chat Room:{" "}

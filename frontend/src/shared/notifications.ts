@@ -4,8 +4,8 @@ function sendNotification(message: string, user: Sender) {
   document.onvisibilitychange = () => {
     if (document.hidden) {
       const notification = new Notification("New message from Amir Chat", {
-        // icon: "https://cdn-icons-png.flaticon.com/512/733/733585.png", // change this to user.profile later
-        icon: `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`,
+        // icon: "https://cdn-icons-png.flaticon.com/512/733/733585.png", // change this to user.profile later 
+        icon: `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`, 
         body: `@${user.username}: ${message}`,
       });
       notification.onclick = () =>

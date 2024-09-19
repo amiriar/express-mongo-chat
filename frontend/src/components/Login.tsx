@@ -21,7 +21,11 @@ const Login: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`, { phone, otp }, { withCredentials: true });
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`,
+        { phone, otp },
+        { withCredentials: true }
+      );
       setMessage("Login successful.");
       setError(false);
       navigate("/chats");
@@ -34,39 +38,50 @@ const Login: React.FC = () => {
   };
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, { withCredentials: true }).then(() => {
-      navigate("/chats");
-      // navigate("/settings");
-    });
+    axios
+      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, {
+        withCredentials: true,
+      })
+      .then(() => {
+        navigate("/chats");
+        // navigate("/settings");
+      });
   }, [navigate]);
 
   return (
-    <div className="login-container">
+    <div className="login-container" style={{ fontFamily: "Poppins" }}>
       <div className="login-form">
         <h2>Login</h2>
         <p>Please enter your phone number and OTP to log in.</p>
-        <input
-          type="text"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Enter your phone number"
-          className={`input-field ${error && !phone ? "error" : ""}`}
-        />
-        <input
-          type="text"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          placeholder="Enter the OTP"
-          className={`input-field ${error && !otp ? "error" : ""}`}
-        />
-        <button onClick={verifyOtp} disabled={isLoading}>
-          {isLoading ? "Verifying..." : "Verify OTP"}
-        </button>
-        {message && (
-          <p className={`message ${error ? "error-message" : "success-message"}`}>
-            {message}
-          </p>
-        )}
+        <form>
+          <input
+            type="text"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Enter your phone number"
+            className={`input-field ${error && !phone ? "error" : ""}`}
+            style={{ fontFamily: "Poppins" }}
+          />
+          <input
+            type="text"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            placeholder="Enter the OTP"
+            className={`input-field ${error && !otp ? "error" : ""}`}
+            style={{ fontFamily: "Poppins" }}
+          />
+          <button onClick={verifyOtp} disabled={isLoading} style={{ fontFamily: "Poppins" }}>
+            {isLoading ? "Verifying..." : "Verify OTP"}
+          </button>
+          {message && (
+            <p
+              className={`message ${error ? "error-message" : "success-message"}`}
+              style={{ fontFamily: "Poppins" }}
+            >
+              {message}
+            </p>
+          )}
+        </form>
       </div>
     </div>
   );

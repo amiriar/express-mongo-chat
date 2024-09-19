@@ -77,11 +77,11 @@ function Settings() {
   };
 
   return (
-    <div className="settings-container">
+    <div className="settings-container" style={{ fontFamily: "Poppins" }}>
       <div
         style={{
           display: "flex",
-          justifyContent: "space-evenly",
+          justifyContent: "space-around",
           gap: "20px",
           alignItems: "center",
         }}
@@ -115,6 +115,7 @@ function Settings() {
             className="input-field"
             value={firstname}
             onChange={(e): void => setFirstname(e.target.value)}
+            style={{ fontFamily: "Poppins" }}
           />
         </div>
 
@@ -126,6 +127,7 @@ function Settings() {
             className="input-field"
             value={lastname}
             onChange={(e): void => setLastname(e.target.value)}
+            style={{ fontFamily: "Poppins" }}
           />
         </div>
 
@@ -137,6 +139,7 @@ function Settings() {
             className="input-field"
             value={username}
             onChange={(e): void => setUsername(e.target.value)}
+            style={{ fontFamily: "Poppins" }}
           />
         </div>
 
@@ -148,6 +151,7 @@ function Settings() {
             className="input-field"
             value={email}
             onChange={(e): void => setEmail(e.target.value)}
+            style={{ fontFamily: "Poppins" }}
           />
         </div>
 
@@ -158,6 +162,7 @@ function Settings() {
             id="profilePicture"
             accept="image/*"
             onChange={handleProfileChange}
+            style={{ fontFamily: "Poppins" }}
           />
           <br />
           {profileName ? (
@@ -186,6 +191,7 @@ function Settings() {
             maxLength={75}
             value={bio}
             onChange={(e): void => setBio(e.target.value)}
+            style={{ fontFamily: "Poppins" }}
           ></textarea>
         </div>
 

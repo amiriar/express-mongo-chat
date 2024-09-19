@@ -228,7 +228,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="chat-container">
-      <div className="sidebar">
+      <div className="sidebar" style={{ fontFamily: "Poppins" }}>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <h2>Chat Rooms</h2>
           <div
