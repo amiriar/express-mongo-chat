@@ -55,14 +55,23 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("leaveRoom", async ({room, sender}) => {
+    socket.on("leaveRoom", async ({ room, sender }) => {
       try {
         socket.leave(room);
 
-        await RoomModel.updateOne(
+        const currentRoom = await RoomModel.findOneAndUpdate(
           { _id: room },
-          { $pull: { participants: sender } } // $pull removes the sender from participants array
+          { $pull: { participants: sender } },
+          { new: true }
         );
+        console.log(currentRoom);
+
+        if (currentRoom && currentRoom.participants.length === 0) {
+          await RoomModel.deleteOne({ _id: room });
+          console.log(
+            `Room ${room} deleted as there were no participants left`
+          );
+        }
 
         const rooms = await RoomModel.find(
           { participants: { $in: [sender] } },
