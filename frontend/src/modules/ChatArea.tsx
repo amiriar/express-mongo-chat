@@ -17,6 +17,8 @@ import { IUser, Message, Recipient, Room, Sender } from "./types/types";
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import axios from "axios";
+import { ProfileModal } from "./ProfileModal";
+import { TbLogout2 } from "react-icons/tb";
 
 interface OnlineUsersProps {
   offlineUsers: IUser[];
@@ -30,11 +32,18 @@ interface OnlineUsersProps {
   message: string;
   setMessage: any;
   publicName: string;
+  setOfflineUsers: any;
+  setOnlineUsers: any;
+  setRooms: any;
+  setRoom: any;
+  setShownRoomName: any;
 }
 
 function ChatArea({
   offlineUsers,
+  setOfflineUsers,
   onlineUsers,
+  setOnlineUsers,
   socket,
   sender,
   recipient,
@@ -44,6 +53,9 @@ function ChatArea({
   message,
   setMessage,
   publicName,
+  setRooms,
+  setRoom,
+  setShownRoomName,
 }: OnlineUsersProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -62,6 +74,7 @@ function ChatArea({
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const sendMessage = (e: any) => {
     e.preventDefault();
@@ -87,10 +100,6 @@ function ChatArea({
         };
       }
 
-      // Add the message to the state with 'isSending' status
-      // setMessages((prevMessages) => [...prevMessages, messageData as Message]);
-
-      // Emit the message to the server
       socket.emit("sendMessage", messageData);
 
       setMessage("");
@@ -100,13 +109,8 @@ function ChatArea({
   };
 
   const addUserToRoom = (data: any) => {
-    const { userId, room } = data;
-    console.log(userId);
-    console.log(room);
     socket?.emit("joinRoom", data);
   };
-
-  const recordedChunksRef = useRef<Blob[]>([]);
 
   const handleStartRecording = () => {
     setIsRecording(true);
@@ -224,32 +228,152 @@ function ChatArea({
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const typingTimeout = setTimeout(() => {
+      socket?.emit("isTyping", {
+        senderId: sender?._id,
+        room,
+        isTyping: false,
+      });
+    }, 1000);
+
+    socket?.emit("isTyping", { senderId: sender?._id, room, isTyping: true });
+
+    return () => clearTimeout(typingTimeout);
+  }, [message]);
+
+  const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>(
+    {}
+  );
+
+  useEffect(() => {
+    socket?.on("typing", (data: any) => {
+      const { senderId, isTyping } = data;
+
+      setTypingUsers((prevTypingUsers) => ({
+        ...prevTypingUsers,
+        [senderId]: isTyping,
+      }));
+    });
+
+    return () => {
+      socket?.off("typing");
+    };
+  }, [socket]);
+
+  const [open, setOpen] = useState(false); // Modal open state
+  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(
+    null
+  ); // Store selected recipient
+
+  const profileHandler = (recipient: Recipient | null) => {
+    if (recipient?.username) {
+      // Ensure username is defined
+      setSelectedRecipient(recipient);
+      setOpen(true); // Open the modal
+    } else {
+      console.error("Username is required to view the profile");
+    }
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setSelectedRecipient(null);
+  };
+
+  const leaveRoomHandler = (room: Room, sender: string) => {
+    if (room && room.roomName) {
+      if (confirm("Are You Sure You Want To Do This??")) {
+        socket?.emit("leaveRoom", { room: room._id, sender });
+        setRoom(null);
+        setShownRoomName("No room joined")
+      }
+    }
+  };
+
+  socket?.on("leftRoom", (rooms: Room) => {
+    setRooms(rooms);
+  });
+
+  socket?.on("errorLeavingRoom", ({ room, error }: any) => {
+    alert(`Error leaving room ${room}: ${error}`);
+  });
+
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>
-          Chat Room:{" "}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "0 30px",
+        }}
+      >
+        <h2
+          style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+          onClick={() => recipient && profileHandler(recipient)}
+        >
+          {recipient?.profile ? (
+            <img
+              src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${recipient.profile}`}
+              alt="Profile"
+              className="avatar"
+            />
+          ) : (
+            "Chat Room:"
+          )}{" "}
           {typeof shownRoomName === "string"
             ? shownRoomName
             : typeof shownRoomName === "object"
               ? // @ts-ignore
                 shownRoomName.roomName
               : "No room joined"}
+          {Object.keys(typingUsers).map((userId) => {
+            if (typingUsers[userId] && userId !== sender?._id) {
+              return (
+                <span
+                  key={userId}
+                  style={{
+                    marginLeft: "5px",
+                    fontWeight: "normal",
+                    fontSize: "1rem",
+                  }}
+                >
+                  (typing...)
+                </span>
+              );
+            }
+            return null;
+          })}
         </h2>
+
         {typeof shownRoomName === "object" ? (
           <div
             style={{
               padding: "5px",
               cursor: "pointer",
               display: "flex",
-              gap: "15px",
+              gap: "25px",
             }}
-            onClick={() => showModalHandler(shownRoomName)}
           >
-            <FaUserPlus size={25} />
+            <div onClick={() => showModalHandler(shownRoomName)}>
+              <FaUserPlus size={25} />
+            </div>
+            <div
+              onClick={() => leaveRoomHandler(shownRoomName, sender?._id ?? "")}
+            >
+              <TbLogout2 size={27} />
+            </div>
           </div>
         ) : (
           ""
+        )}
+
+        {selectedRecipient && (
+          <ProfileModal
+            recipient={selectedRecipient as Required<Recipient>} // Type casting
+            open={open}
+            handleClose={handleClose}
+          />
         )}
       </div>
       <Modal

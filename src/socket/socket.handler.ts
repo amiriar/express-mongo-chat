@@ -20,8 +20,9 @@ export const handleSocketConnections = (io: Server) => {
 
     createPublicRooms();
 
-    socket.on("typing", (isTyping) => {
-      socket.broadcast.emit("typing", isTyping);
+    socket.on("isTyping", (data) => {
+      const { senderId, room, isTyping } = data;
+      socket.to(room).emit("typing", { senderId, isTyping });
     });
 
     socket.on("disconnect", async () => {
@@ -54,8 +55,25 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("leaveRoom", (roomName) => {
-      socket.leave(roomName);
+    socket.on("leaveRoom", async ({room, sender}) => {
+      try {
+        socket.leave(room);
+
+        await RoomModel.updateOne(
+          { _id: room },
+          { $pull: { participants: sender } } // $pull removes the sender from participants array
+        );
+
+        const rooms = await RoomModel.find(
+          { participants: { $in: [sender] } },
+          {}
+        );
+
+        socket.emit("leftRoom", rooms);
+      } catch (error: any) {
+        console.error("Error leaving room:", error);
+        socket.emit("errorLeavingRoom", { room, error: error.message });
+      }
     });
 
     socket.on("getHistory", async (roomName) => {
@@ -185,7 +203,7 @@ export const handleSocketConnections = (io: Server) => {
     const sendOfflineUsers = async (socket: Socket) => {
       const allUsers = await UserModel.find(
         {},
-        "_id username profile lastSeen"
+        "_id username profile lastSeen bio lastname firstname email"
       );
 
       const offlineUsers = allUsers.filter(
@@ -199,7 +217,17 @@ export const handleSocketConnections = (io: Server) => {
       if (user) {
         User = await UserModel.findOne(
           { _id: user?._id },
-          { username: 1, phoneNumber: 1, id: 1, profile: 1, lastSeen: 1 }
+          {
+            username: 1,
+            phoneNumber: 1,
+            id: 1,
+            profile: 1,
+            lastSeen: 1,
+            email: 1,
+            firstname: 1,
+            lastname: 1,
+            bio: 1,
+          }
         );
 
         onlineUsers.set(userId, User);
@@ -264,68 +292,6 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    // socket.on(
-    //   "voice-message",
-    //   async (audioArrayBuffer: ArrayBuffer, messageData) => {
-    //     try {
-    //       console.log(audioArrayBuffer);
-    //       console.log(typeof audioArrayBuffer);
-
-    //       const audioBuffer = Buffer.from(audioArrayBuffer);
-    //       const fileName = `audio_${uuidv4()}.mp3`;
-    //       const audioUploadPath = path.join(
-    //         __dirname,
-    //         "..",
-    //         "..",
-    //         "public",
-    //         "uploads",
-    //         "audio"
-    //       );
-
-    //       if (!fs.existsSync(audioUploadPath)) {
-    //         fs.mkdirSync(audioUploadPath, { recursive: true });
-    //       }
-
-    //       fs.writeFileSync(`${audioUploadPath}/${fileName}`, audioBuffer);
-
-    //       const voiceUrl = `/uploads/audio/${fileName}`;
-
-    //       messageData.voiceUrl = voiceUrl;
-    //       const newMessage = await ChatMessageModel.create(messageData);
-    //       console.log(newMessage);
-
-    //       const sender = await UserModel.findById(
-    //         newMessage.sender,
-    //         "username profile"
-    //       );
-    //       const recipient = await UserModel.findById(
-    //         newMessage.recipient,
-    //         "username profile"
-    //       );
-
-    //       const messageToSend = {
-    //         ...newMessage.toObject(),
-    //         sender: {
-    //           _id: sender?._id,
-    //           username: sender?.username,
-    //           profile: sender?.profile,
-    //         },
-    //         recipient: recipient
-    //           ? {
-    //               _id: recipient._id,
-    //               username: recipient.username,
-    //               profile: recipient.profile,
-    //             }
-    //           : null,
-    //       };
-
-    //       io.to(messageData.room).emit("voice-message", messageToSend);
-    //     } catch (error) {
-    //       console.error("Error saving voice message:", error);
-    //     }
-    //   }
-    // );
-
     socket.on("voice-message", async (data: any) => {
       try {
         const { mp3Url, room, senderId } = data;
@@ -376,20 +342,3 @@ export const handleSocketConnections = (io: Server) => {
     });
   });
 };
-
-// import { Server, Socket } from "socket.io";
-// import { messageEvents } from "./events/messageEvents";
-// import { userEvents } from "./events/userEvents";
-// import { roomEvents } from "./events/roomEvents";
-
-// export const handleSocketConnections = (io: Server) => {
-//   const onlineUsers = new Map();
-
-//   io.on("connection", (socket: Socket) => {
-//     console.log(`New user connected: ${socket.id}`);
-
-//     userEvents(socket, io, onlineUsers);
-//     messageEvents(socket, io);
-//     roomEvents(socket, io);
-//   });
-// };

@@ -621,13 +621,18 @@ const Home: React.FC = () => {
         setMessage={setMessage}
         messages={messages}
         shownRoomName={shownRoomName}
+        setShownRoomName={setShownRoomName}
         room={room}
         recipient={recipient}
         sender={sender}
         socket={socket}
         onlineUsers={onlineUsers}
+        setOnlineUsers={setOnlineUsers}
         offlineUsers={offlineUsers}
+        setOfflineUsers={setOfflineUsers}
         publicName={publicName}
+        setRooms={setRooms}
+        setRoom={setRoom}
       />
     </div>
   );
