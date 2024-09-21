@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { CiClock2 } from "react-icons/ci";
 import { FaMicrophone, FaStop, FaPaperPlane, FaUserPlus } from "react-icons/fa";
+import { MdOutlineAttachFile } from "react-icons/md";
+import { TextField, InputAdornment } from "@mui/material";
 import {
   Modal,
   Box,
@@ -19,6 +21,7 @@ import { Socket } from "socket.io-client";
 import axios from "axios";
 import { ProfileModal } from "./ProfileModal";
 import { TbLogout2 } from "react-icons/tb";
+import ChatInput from "./ChahtInput";
 
 interface OnlineUsersProps {
   offlineUsers: IUser[];
@@ -286,7 +289,7 @@ function ChatArea({
       if (confirm("Are You Sure You Want To Do This??")) {
         socket?.emit("leaveRoom", { room: room._id, sender });
         setRoom(null);
-        setShownRoomName("No room joined")
+        setShownRoomName("No room joined");
       }
     }
   };
@@ -298,6 +301,8 @@ function ChatArea({
   socket?.on("errorLeavingRoom", ({ room, error }: any) => {
     alert(`Error leaving room ${room}: ${error}`);
   });
+
+  const uploadFileHandler = () => {};
 
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
@@ -567,6 +572,34 @@ function ChatArea({
                     </audio>
                   </div>
                 )}
+                {msg.fileUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
+                      <img
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                        alt="Uploaded media"
+                        style={{ maxWidth: "400px", borderRadius: "8px" }}
+                      />
+                    ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
+                      <video
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                        controls
+                        style={{ maxWidth: "400px", borderRadius: "8px" }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <p>Unsupported file format</p>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
@@ -579,12 +612,12 @@ function ChatArea({
         <div ref={chatEndRef} />
       </div>
 
-      <form
+      {/* <form
         className="message-input"
         onSubmit={sendMessage}
         style={styles.form}
       >
-        <input
+        <TextField
           value={room ? message : ""}
           onChange={(e) => setMessage(e.target.value)}
           placeholder={
@@ -593,7 +626,17 @@ function ChatArea({
           className="input-field"
           style={styles.inputField}
           disabled={!room}
+          variant="outlined"
+          fullWidth
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MdOutlineAttachFile size={20} style={{ padding: "5px", cursor:"pointer" }} onClick={uploadFileHandler} />
+              </InputAdornment>
+            ),
+          }}
         />
+
         <div
           className="voice-message-controls"
           style={styles.voiceMessageControls}
@@ -624,6 +667,7 @@ function ChatArea({
             </div>
           )}
         </div>
+
         <button
           type="submit"
           className="send-btn"
@@ -632,7 +676,15 @@ function ChatArea({
         >
           <FaPaperPlane />
         </button>
-      </form>
+      </form> */}
+
+      <ChatInput
+        message={message}
+        setMessage={setMessage}
+        room={room}
+        sender={sender}
+        recipient={recipient}
+      />
     </div>
   );
 }

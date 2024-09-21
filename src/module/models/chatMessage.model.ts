@@ -15,12 +15,11 @@ export interface IChatMessage extends Document {
   timestamp: Date;
   date: string;
   status: "sent" | "delivered" | "seen";
-  voiceUrl?: string; // Add this line for optional voice URL
+  voiceUrl?: string;
+  fileUrl?: string;
 }
 
 const ChatMessageSchema = new Schema<IChatMessage>({
-  // sender: { type: Types.ObjectId, required: true },
-  // recipient: { type: Types.ObjectId, required: false },
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   content: { type: String, required: false },
@@ -32,7 +31,8 @@ const ChatMessageSchema = new Schema<IChatMessage>({
     enum: ["sent", "delivered", "seen"],
     default: "sent",
   },
-  voiceUrl: { type: String, required: false }, // Add this line for the voice URL
+  voiceUrl: { type: String, required: false },
+  fileUrl: { type: String, required: false },
 });
 
 const ChatMessageModel = mongoose.model<IChatMessage>(

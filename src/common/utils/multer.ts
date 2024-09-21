@@ -44,14 +44,13 @@ const storage: StorageEngine = multer.diskStorage({
   },
 });
 
-// File filters
 function fileFilter(
   req: Request,
   file: Express.Multer.File,
   cb: FileFilterCallback
 ): void {
   const ext = path.extname(file.originalname).toLowerCase();
-  const mimetypes = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+  const mimetypes = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp3", ".mp4", ".mkv", ".webm"];
   if (mimetypes.includes(ext)) {
     return cb(null, true);
   }
@@ -103,15 +102,13 @@ function audioFilter(
   if (mimetypes.includes(ext)) {
     return cb(null, true);
   }
-  return cb(createError.BadRequest("فرمت ارسال شده ویدیو صحیح نمیباشد"));
+  return cb(createError.BadRequest("فرمت ارسال شده ویس صحیح نمیباشد"));
 }
 
-// Max file sizes
 const audioMaxSize = 5 * 1000 * 1000; // 5MB
-const pictureMaxSize = 10 * 1000 * 1000; // 10MB
+const fileMaxSize = 10 * 1000 * 1000; // 10MB
 const videoMaxSize = 50 * 1000 * 1000; // 50MB
 
-// Exporting different multer configurations for file uploads
 export const uploadAudio = multer({
   storage,
   fileFilter: audioFilter,
@@ -120,12 +117,12 @@ export const uploadAudio = multer({
 export const uploadFile = multer({
   storage,
   fileFilter,
-  limits: { fileSize: pictureMaxSize },
+  limits: { fileSize: fileMaxSize },
 });
 export const uploadResume = multer({
   storage,
   fileFilter: ResumeFilter,
-  limits: { fileSize: pictureMaxSize },
+  limits: { fileSize: fileMaxSize },
 });
 export const uploadVideo = multer({
   storage,

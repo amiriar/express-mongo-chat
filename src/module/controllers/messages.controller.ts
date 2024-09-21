@@ -3,8 +3,7 @@ import fs from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
 import autoBind from "auto-bind";
-import UserModel from "../models/user.model"; // Assuming UserModel is required for something else later
-import ffmpegStatic from "ffmpeg-static"; // Add this line
+import ffmpegStatic from "ffmpeg-static";
 import ChatMessageModel from "../../module/models/chatMessage.model";
 import { v4 as uuidv4 } from "uuid";
 import messagesService from "../services/messages.service";
@@ -49,7 +48,7 @@ export class MessagesController {
           const recipientParsed = recipient ? JSON.parse(recipient) : null;
           const roomParsed = JSON.parse(room);
 
-          if (!senderParsed   || !roomParsed) {
+          if (!senderParsed || !roomParsed) {
             return res.status(400).json({ message: "Missing required fields" });
           }
 
@@ -67,6 +66,21 @@ export class MessagesController {
           res.status(500).send("Error converting file.");
         })
         .save(mp3FilePath);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (req?.body?.fileUploadPath && req?.body?.filename) {
+        req.body.fileUrl = path
+          .join(req.body.fileUploadPath, req.body.filename)
+          .replace(/\\/g, "/");
+      }
+      const result = await this.#service.uploadFile(req.body);
+
+      res.json(result);
     } catch (error) {
       next(error);
     }

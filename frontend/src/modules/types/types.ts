@@ -11,6 +11,7 @@ export interface Message {
   publicName: string;
   timestamp?: Date | null;
   voiceUrl?: string;
+  fileUrl?: string;
   isSending: boolean;
 }
 

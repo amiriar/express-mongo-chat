@@ -26,7 +26,7 @@ function Settings() {
     formData.append("bio", bio);
 
     axios
-      .post("http://localhost:3001/api/dashboard", formData, {
+      .post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard`, formData, {
         withCredentials: true,
       })
       .then(() => {
@@ -39,7 +39,7 @@ function Settings() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:3001/api/dashboard/whoami", {
+      .get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/dashboard/whoami`, {
         withCredentials: true,
       })
       .then((response) => {
