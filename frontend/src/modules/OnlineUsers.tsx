@@ -32,8 +32,8 @@ function OnlineUsers({ onlineUsers, pvHandler, sender }: OnlineUsersProps) {
               ) : (
                 <span>{user.username}</span>
               )}
+              {/* <span>(Online)</span> */}
             </span>
-            <span>(Online)</span>
           </div>
         </li>
       ))}

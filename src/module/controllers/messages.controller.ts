@@ -71,16 +71,93 @@ export class MessagesController {
     }
   };
 
+  // uploadFile = async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (req?.body?.fileUploadPath && req?.body?.filename) {
+  //       req.body.fileUrl = path
+  //         .join(req.body.fileUploadPath, req.body.filename)
+  //         .replace(/\\/g, "/");
+  //     }
+  //     const result = await this.#service.uploadFile(req.body);
+
+  //     const messageToSend = {
+  //       content: "",
+  //       room: req.body.room,
+  //       isSending: false,
+  //       fileUrl: result,
+  //       sender: { // i have sender id in req.body.sender
+  //         // _id: sender?._id,
+  //         // username: sender?.username,
+  //         // profile: sender?.profile,
+  //       },
+  //       // recipient: recipient // i have recipient id in req.body.recipient
+  //       //   ? {
+  //       //       _id: recipient._id,
+  //       //       username: recipient.username,
+  //       //       profile: recipient.profile,
+  //       //     }
+  //       //   : null,
+  //     };
+
+  //     res.json(messageToSend);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // };
+
   uploadFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Ensure the fileUrl is properly set
       if (req?.body?.fileUploadPath && req?.body?.filename) {
         req.body.fileUrl = path
           .join(req.body.fileUploadPath, req.body.filename)
           .replace(/\\/g, "/");
       }
-      const result = await this.#service.uploadFile(req.body);
 
-      res.json(result);
+      // Call the service to handle the file upload and get the result
+
+      // Extracting sender, recipient, and room from the request body
+      const { sender, recipient, room } = req.body;
+
+      // Parse the sender, recipient, and room fields (if necessary)
+      const senderParsed = sender ? JSON.parse(sender) : null;
+      const recipientParsed = recipient ? JSON.parse(recipient) : null;
+      const roomParsed = room ? room : null;
+
+      // Ensure required fields are present
+      if (!senderParsed || !roomParsed) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const newData = {
+        sender: senderParsed?._id,
+        recipient: recipientParsed ? recipientParsed?._id : null,
+        room: room,
+        fileUrl: req.body.fileUrl,
+      };
+
+      // const result = await this.#service.uploadFile(newData);
+
+      const messageToSend = {
+        content: "",
+        room: roomParsed,
+        isSending: false,
+        fileUrl: req.body.fileUrl,
+        sender: {
+          _id: senderParsed?._id,
+          username: senderParsed?.username,
+          profile: senderParsed?.profile,
+        },
+        recipient: recipientParsed
+          ? {
+              _id: recipientParsed._id,
+              username: recipientParsed.username,
+              profile: recipientParsed.profile,
+            }
+          : null,
+      };
+
+      res.json(messageToSend);
     } catch (error) {
       next(error);
     }

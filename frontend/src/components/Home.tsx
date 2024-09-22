@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import "./Home.css";
@@ -175,10 +175,16 @@ const Home: React.FC = () => {
       });
     };
 
+    socket?.on("fileUpload-respond", (messageData: Message) => {
+      console.log(messageData);
+      setMessages((prevMessages) => [...prevMessages, messageData]);
+    });
+
     socket?.on("voice-message-response", handleVoiceMessageResponse);
 
     return () => {
       socket?.off("voice-message-response", handleVoiceMessageResponse);
+      socket?.off("fileUpload-respond");
     };
   }, [socket]);
 
@@ -257,75 +263,16 @@ const Home: React.FC = () => {
         </button>
 
         <div>
-          <h2 style={{ marginTop: "20px" }}>Users</h2>
+          <h2 style={{ marginTop: "20px", fontSize: "1.2rem" }}>
+            Online Users
+          </h2>
 
-          {/* Online Users */}
-          {/* <ul className="users-list">
-            {onlineUsers?.map((user: any) => (
-              <li
-                key={user._id}
-                onClick={() => pvHandler(user)}
-                style={{ cursor: "pointer", padding: "2px" }}
-              >
-                <img
-                  src={
-                    user._id === sender?._id
-                      ? `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg`
-                      : `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
-                  }
-                  alt="Profile"
-                  className="avatar"
-                />
-
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span>
-                    {user._id === sender?._id ? (
-                      "Saved Messages"
-                    ) : (
-                      <span>{user.username}</span>
-                    )}
-                  </span>
-                  <span>(Online)</span>
-                </div>
-              </li>
-            ))}
-          </ul> */}
           <OnlineUsers
             onlineUsers={onlineUsers}
             pvHandler={pvHandler}
             sender={sender}
           />
 
-          {/* Offline Users */}
-          {/* <div
-            className="offline-users"
-            style={{ marginTop: "15px", marginBottom: "20px" }}
-          >
-            <h3 style={{ marginBottom: "15px" }}>Offline Users</h3>
-            <ul className="users-list">
-              {offlineUsers.map((user: any) => (
-                <li
-                  key={user._id}
-                  onClick={() => pvHandler(user)}
-                  style={{ cursor: "pointer", padding: "2px" }}
-                >
-                  <img
-                    src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                    alt="Profile"
-                    className="avatar"
-                  />
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span>{user.username}</span>
-                    <span>
-                      {user.lastSeen
-                        ? ` ${new Date(user.lastSeen).toLocaleString()}`
-                        : " (Offline)"}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div> */}
           <OfflineUsers offlineUsers={offlineUsers} pvHandler={pvHandler} />
         </div>
       </div>

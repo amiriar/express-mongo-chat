@@ -30,10 +30,10 @@ class MessagesService {
     await newMessage.save();
   }
 
-  async uploadFile(data: any) {
-    const message = await this.#model.create(data)
-    return { fileUrl: message.fileUrl }
-  }
+  // async uploadFile(data: any) {
+  //   const message = await this.#model.create(data);
+  //   return { fileUrl: message.fileUrl }
+  // }
 }
 
 export default new MessagesService();

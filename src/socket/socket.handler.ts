@@ -50,8 +50,14 @@ export const handleSocketConnections = (io: Server) => {
           { _id: room._id },
           { $addToSet: { participants: userId } }
         );
-        const rooms = await RoomModel.find({ participants: { $in: [userId] } });
-        io.emit("newRoomResponse", rooms);
+        // const rooms = await RoomModel.find({ participants: { $in: [userId] } });
+        const userRooms = await RoomModel.find({
+          $or: [
+            { isPublic: true },
+            { participants: { $in: [User?._id?.toString()] } },
+          ],
+        }).select("_id roomName isGroup createdAt participants");
+        io.emit("newRoomResponse", userRooms);
       }
     });
 
@@ -64,7 +70,6 @@ export const handleSocketConnections = (io: Server) => {
           { $pull: { participants: sender } },
           { new: true }
         );
-        console.log(currentRoom);
 
         if (currentRoom && currentRoom.participants.length === 0) {
           await RoomModel.deleteOne({ _id: room });
@@ -147,11 +152,11 @@ export const handleSocketConnections = (io: Server) => {
         );
 
         const messageToSend = {
-          _id: newMessage._id, // Use the generated _id
-          tempId, // Send the tempId back to update the message in the frontend
+          _id: newMessage._id,
+          tempId,
           content: newMessage.content,
           room: newMessage.room,
-          timestamp: newMessage.timestamp, // Now has the real timestamp
+          timestamp: newMessage.timestamp,
           status: newMessage.status,
           isSending: false,
           voiceUrl: newMessage.voiceUrl,
@@ -343,6 +348,69 @@ export const handleSocketConnections = (io: Server) => {
         };
         io.to(room._id ? room._id : room).emit(
           "voice-message-response",
+          messageToSend
+        );
+
+        // socket?.emit("fileUpload", {
+        //   fileUrl,
+        //   sender,
+        //   room,
+        //   ...(recipient && { recipient }),
+        // });
+      } catch (error) {
+        console.error("Error processing voice message:", error);
+      }
+    });
+
+    socket.on("fileUpload", async (data: any) => {
+      try {
+        const { fileUrl, sender, room, recipient } = data;
+
+        console.log("data");
+        console.log(data);
+        console.log("data");
+
+        if (!sender || !room || !recipient || !fileUrl) {
+          throw new Error("Missing data");
+        }
+
+        const messageData = {
+          fileUrl,
+          room: room._id ? room._id : room,
+          sender: sender._id ? sender._id : sender,
+          ...(recipient && { recipient }),
+        };
+
+        const newMessage = await ChatMessageModel.create(messageData);
+
+        const Fullsender = await UserModel.findById(
+          newMessage.sender,
+          "username profile"
+        );
+
+        const Fullrecipient = await UserModel.findById(
+          newMessage.recipient,
+          "username profile"
+        );
+
+        const messageToSend = {
+          ...newMessage.toObject(),
+          sender: {
+            _id: Fullsender?._id,
+            username: Fullsender?.username,
+            profile: Fullsender?.profile,
+          },
+          recipient: Fullrecipient
+            ? {
+                _id: Fullrecipient._id,
+                username: Fullrecipient.username,
+                profile: Fullrecipient.profile,
+              }
+            : null,
+        };
+
+        io.to(room._id ? room._id : room).emit(
+          "fileUpload-respond",
           messageToSend
         );
       } catch (error) {

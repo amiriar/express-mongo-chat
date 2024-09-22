@@ -1,8 +1,7 @@
-import { v4 as uuidv4 } from "uuid";
 import { CiClock2 } from "react-icons/ci";
 import { FaMicrophone, FaStop, FaPaperPlane, FaUserPlus } from "react-icons/fa";
 import { MdOutlineAttachFile } from "react-icons/md";
-import { TextField, InputAdornment } from "@mui/material";
+import { TextField, InputAdornment, Dialog } from "@mui/material";
 import {
   Modal,
   Box,
@@ -21,9 +20,9 @@ import { Socket } from "socket.io-client";
 import axios from "axios";
 import { ProfileModal } from "./ProfileModal";
 import { TbLogout2 } from "react-icons/tb";
-import ChatInput from "./ChahtInput";
+import ChatInput from "./ChatInput";
 
-interface OnlineUsersProps {
+interface ChatAreaProps {
   offlineUsers: IUser[];
   onlineUsers: IUser[];
   socket: typeof Socket | null;
@@ -59,7 +58,7 @@ function ChatArea({
   setRooms,
   setRoom,
   setShownRoomName,
-}: OnlineUsersProps) {
+}: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
   const handleCloseModal = () => setOpenModal(false);
@@ -79,40 +78,19 @@ function ChatArea({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
-  const sendMessage = (e: any) => {
-    e.preventDefault();
-    if (!message.trim()) return alert("Please write something down.");
+  const addUserToRoom = (data: { userId: string; room: string }) => {
+    const { userId } = data;
 
-    if (socket && room) {
-      const tempId = uuidv4();
-      const messageData: Partial<Message> = {
-        tempId,
-        sender: {
-          _id: sender?._id ?? "",
-          username: sender?.username ?? "unknown",
-        },
-        content: message,
-        room: room,
-        publicName: publicName,
-        isSending: true,
-      };
-
-      if (recipient) {
-        messageData.recipient = {
-          _id: recipient._id,
-        };
-      }
-
-      socket.emit("sendMessage", messageData);
-
-      setMessage("");
-    } else {
-      alert("Please select a room or user to send the message.");
-    }
-  };
-
-  const addUserToRoom = (data: any) => {
+    // Emit socket event to add user to the room
     socket?.emit("joinRoom", data);
+
+    // Update the state to remove the user from online/offline users list
+    setNonParticipantOnlineUsers((prevUsers) =>
+      prevUsers.filter((user) => user._id !== userId)
+    );
+    setNonParticipantOfflineUsers((prevUsers) =>
+      prevUsers.filter((user) => user._id !== userId)
+    );
   };
 
   const handleStartRecording = () => {
@@ -302,7 +280,11 @@ function ChatArea({
     alert(`Error leaving room ${room}: ${error}`);
   });
 
-  const uploadFileHandler = () => {};
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
 
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
@@ -381,7 +363,7 @@ function ChatArea({
           />
         )}
       </div>
-      <Modal
+      {/* <Modal
         open={openModal}
         onClose={handleCloseModal}
         aria-labelledby="modal-title"
@@ -444,6 +426,84 @@ function ChatArea({
                   />
                   <Button
                     onClick={() => addUserToRoom({ userId: user._id, room })}
+                    sx={{ width: "auto" }}
+                  >
+                    <FaUserPlus size={20} />
+                  </Button>
+                </ListItem>
+              ))
+            ) : (
+              <Typography>No offline users to add.</Typography>
+            )}
+          </List>
+        </Box>
+      </Modal> */}
+
+      <Modal
+        open={openModal}
+        onClose={handleCloseModal}
+        aria-labelledby="modal-title"
+      >
+        <Box sx={ModalStyle}>
+          <Typography id="modal-title" variant="h6" component="h2">
+            Add Users to Room
+          </Typography>
+
+          {/* Online Users Section */}
+          <Typography variant="subtitle1" sx={{ mt: 2 }}>
+            Online Users
+          </Typography>
+          <List>
+            {nonParticipantOnlineUsers.length > 0 ? (
+              nonParticipantOnlineUsers.map((user: IUser) => (
+                <ListItem
+                  key={user._id}
+                  sx={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <ListItemAvatar>
+                    <Avatar
+                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                      alt={user.username}
+                    />
+                  </ListItemAvatar>
+                  <ListItemText primary={user.username} />
+                  <Button
+                    onClick={() => addUserToRoom({ userId: user._id, room })} // Use room correctly here
+                    sx={{ width: "auto" }}
+                  >
+                    <FaUserPlus size={20} />
+                  </Button>
+                </ListItem>
+              ))
+            ) : (
+              <Typography>No online users to add.</Typography>
+            )}
+          </List>
+
+          {/* Offline Users Section */}
+          <Typography variant="subtitle1" sx={{ mt: 2 }}>
+            Offline Users
+          </Typography>
+          <List>
+            {nonParticipantOfflineUsers.length > 0 ? (
+              nonParticipantOfflineUsers.map((user: IUser) => (
+                <ListItem
+                  key={user._id}
+                  sx={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <ListItemAvatar>
+                    <Avatar
+                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                      alt={user.username}
+                    />
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={user.username}
+                    // @ts-ignore
+                    secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
+                  />
+                  <Button
+                    onClick={() => addUserToRoom({ userId: user._id, room })} // Use room correctly here
                     sx={{ width: "auto" }}
                   >
                     <FaUserPlus size={20} />
@@ -572,7 +632,7 @@ function ChatArea({
                     </audio>
                   </div>
                 )}
-                {msg.fileUrl && (
+                {/* {msg.fileUrl && (
                   <div
                     style={{
                       width: "100%",
@@ -587,6 +647,62 @@ function ChatArea({
                         alt="Uploaded media"
                         style={{ maxWidth: "400px", borderRadius: "8px" }}
                       />
+                    ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
+                      <video
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                        controls
+                        style={{ maxWidth: "400px", borderRadius: "8px" }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <p>Unsupported file format</p>
+                    )}
+                  </div>
+                )} */}
+
+                {msg.fileUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
+                      <div>
+                        {/* Thumbnail Image */}
+                        <img
+                          src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                          alt="Uploaded media"
+                          style={{
+                            maxWidth: "400px",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                          }}
+                          onClick={toggleFullScreen} // Trigger full screen on click
+                        />
+
+                        {/* Full Screen Dialog */}
+                        <Dialog
+                          open={isFullScreen}
+                          onClose={toggleFullScreen}
+                          fullScreen
+                        >
+                          <img
+                            src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                            alt="Uploaded media in full screen"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              backgroundColor: "black",
+                            }}
+                            onClick={toggleFullScreen} // Toggle back to normal size on click
+                          />
+                        </Dialog>
+                      </div>
                     ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
                       <video
                         src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
@@ -684,6 +800,11 @@ function ChatArea({
         room={room}
         sender={sender}
         recipient={recipient}
+        handleStartRecording={handleStartRecording}
+        handleStopRecording={handleStopRecording}
+        isRecording={isRecording}
+        socket={socket}
+        publicName={publicName}
       />
     </div>
   );

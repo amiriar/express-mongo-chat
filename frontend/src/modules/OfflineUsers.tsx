@@ -26,7 +26,7 @@ function OfflineUsers({ offlineUsers, pvHandler }: OnlineUsersProps) {
             />
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span>{user.username}</span>
-              <span>
+              <span style={{ fontSize: "0.75rem", color: "gray" }}>
                 {user.lastSeen
                   ? ` ${new Date(user.lastSeen).toLocaleString()}`
                   : " (Offline)"}
