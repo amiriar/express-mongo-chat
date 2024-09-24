@@ -17,7 +17,6 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
-        {/* Define other routes here */}
       </Routes>
     </Router>
   </StrictMode>,

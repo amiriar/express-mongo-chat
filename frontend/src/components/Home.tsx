@@ -14,6 +14,7 @@ import checkPageStatus from "../shared/notifications";
 const Home: React.FC = () => {
   const [sender, setSender] = useState<Sender | null>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [pinMessage, setPinMessage] = useState<Message | null>(null);
   const [message, setMessage] = useState<string>("");
   const [publicName, setPublicName] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,18 +67,34 @@ const Home: React.FC = () => {
     return `${sortedIds[0]}-${sortedIds[1]}`;
   };
 
-  const joinRoom = (roomName: string) => {
+  const joinRoom = (roomName: any) => {
+    console.log("room");
+    console.log(room);
+    console.log("room");
+
+    console.log("shownRoomName");
+    console.log(shownRoomName);
+    console.log("shownRoomName");
+
     setRecipient(null);
     setShownRoomName(roomName);
     setRoom(roomName);
     setPublicName(roomName);
 
     if (socket) {
-      socket.emit("joinRoom", roomName);
+      socket.emit("joinRoom", roomName._id ? roomName._id : roomName);
     }
   };
 
   const pvHandler = (user: any) => {
+    console.log("room");
+    console.log(room);
+    console.log("room");
+
+    console.log("shownRoomName");
+    console.log(shownRoomName);
+    console.log("shownRoomName");
+
     setShownRoomName("");
     setRecipient(user);
 
@@ -111,17 +128,39 @@ const Home: React.FC = () => {
 
       socket?.on("sendHistory", (messageData: Message[]) => {
         setMessages(messageData as Message[]);
-      });
+      })
 
-      socket?.on("deleteMessageResponse", (data: any) => {
-        if (data.success) {
-          setMessages((prevMessages) =>
-            prevMessages.filter((msg) => msg._id !== data.messageId)
-          );
-        } else if (data.success === false) {
-          alert("Error in deleting the message");
+      socket?.on(
+        "deleteMessageResponse",
+        ({ success, messageId, error, deletedBy, deletedByEveryone }: any) => {
+          if (success) {
+            setMessages((prevMessages) =>
+              prevMessages.filter((msg) => {
+                console.log({
+                  success,
+                  messageId,
+                  error,
+                  deletedBy,
+                  deletedByEveryone,
+                });
+
+                const isCurrentMessage = msg._id === messageId;
+                const isDeletedForEveryone = deletedByEveryone;
+                const isDeletedForSender =
+                  deletedBy && deletedBy.includes(sender?._id);
+
+                if (isDeletedForEveryone && isCurrentMessage) {
+                  return false;
+                }
+
+                return !isCurrentMessage || !isDeletedForSender;
+              })
+            );
+          } else {
+            console.error("Failed to delete message:", error);
+          }
         }
-      });
+      );
 
       return () => {
         socket?.off("deleteMessageResponse");
@@ -148,6 +187,12 @@ const Home: React.FC = () => {
       }
       return updatedMessages;
     });
+  });
+
+  socket?.on("pinMessageResponse", ({ room, messageId }: any) => {
+    setPinMessage(messageId)
+    console.log(`pinned ${messageId} on: ${room}`);
+    
   });
 
   socket?.on("newRoomResponse", (roomData: Room[]) => {
@@ -277,292 +322,6 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* <div className="chat-area">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>
-            Chat Room:{" "}
-            {typeof shownRoomName === "string"
-              ? shownRoomName
-              : typeof shownRoomName === "object"
-                ? // @ts-ignore
-                  shownRoomName.roomName
-                : "No room joined"}
-          </h2>
-          {typeof shownRoomName === "object" ? (
-            <div
-              style={{
-                padding: "5px",
-                cursor: "pointer",
-                display: "flex",
-                gap: "15px",
-              }}
-              onClick={() => showModalHandler(shownRoomName)}
-            >
-              <FaUserPlus size={25} />
-            </div>
-          ) : (
-            ""
-          )}
-        </div>
-        <Modal
-          open={openModal}
-          onClose={handleCloseModal}
-          aria-labelledby="modal-title"
-        >
-          <Box sx={ModalStyle}>
-            <Typography id="modal-title" variant="h6" component="h2">
-              Add Users to Room
-            </Typography>
-
-            <Typography variant="subtitle1" sx={{ mt: 2 }}>
-              Online Users
-            </Typography>
-            <List>
-              {nonParticipantOnlineUsers.length > 0 ? (
-                nonParticipantOnlineUsers.map((user: IUser) => (
-                  <ListItem
-                    key={user._id}
-                    sx={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                        alt={user.username}
-                      />
-                    </ListItemAvatar>
-                    <ListItemText primary={user.username} />
-                    <Button
-                      onClick={() => addUserToRoom({ userId: user._id, room })}
-                      sx={{ width: "auto" }}
-                    >
-                      <FaUserPlus size={20} />
-                    </Button>
-                  </ListItem>
-                ))
-              ) : (
-                <Typography>No online users to add.</Typography>
-              )}
-            </List>
-
-            <Typography variant="subtitle1" sx={{ mt: 2 }}>
-              Offline Users
-            </Typography>
-            <List>
-              {nonParticipantOfflineUsers.length > 0 ? (
-                nonParticipantOfflineUsers.map((user: IUser) => (
-                  <ListItem
-                    key={user._id}
-                    sx={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                        alt={user.username}
-                      />
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={user.username}
-                      // @ts-ignore
-                      secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
-                    />
-                    <Button
-                      onClick={() => addUserToRoom({ userId: user._id, room })}
-                      sx={{ width: "auto" }}
-                    >
-                      <FaUserPlus size={20} />
-                    </Button>
-                  </ListItem>
-                ))
-              ) : (
-                <Typography>No offline users to add.</Typography>
-              )}
-            </List>
-          </Box>
-        </Modal>
-
-        <div className="messages" style={{ overflowY: "scroll" }}>
-          {room ? (
-            messages.map((msg: Message) => {
-              return (
-                <div key={msg._id || msg.tempId} className="message-container">
-                  <div
-                    className={`message ${
-                      msg?.sender?._id === sender?._id ? "sent" : "received"
-                    }`}
-                    style={{ minWidth: "200px" }}
-                  >
-                    <p
-                      style={{
-                        textAlign:
-                          msg?.sender?._id === sender?._id ? "right" : "left",
-                        marginTop: "0px",
-                      }}
-                    >
-                      {msg?.sender?.username}
-                    </p>
-                    <p
-                      style={{
-                        textAlign:
-                          msg?.sender?._id === sender?._id ? "right" : "left",
-                        margin: "5px 0 0 0",
-                        fontFamily: "IranYekan",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {msg?.content}
-                    </p>
-                    <p
-                      className="timestamp"
-                      style={{
-                        textAlign:
-                          msg?.sender?._id === sender?._id ? "left" : "right",
-                        margin: "5px 0 0 0",
-                      }}
-                    >
-                      {msg.isSending || !msg.timestamp ? (
-                        <CiClock2 size={10} />
-                      ) : msg.timestamp ? (
-                        new Date(msg.timestamp).toLocaleTimeString()
-                      ) : (
-                        "Unknown Time"
-                      )}
-                    </p>
-                    <div className="message-options">
-                      <button
-                        style={{
-                          color: "red",
-                          width: "20px",
-                          position: "absolute",
-                          top: "-5px",
-                          right:
-                            msg?.sender?._id === sender?._id ? "100%" : "-35px",
-                        }}
-                        onClick={() => toggleOptions(msg._id ?? "")}
-                      >
-                        ⋮
-                      </button>
-                      {selectedMessageId === msg._id && (
-                        <div
-                          className="options-dropdown"
-                          style={{
-                            position: "absolute",
-                            top: "35px",
-                            right:
-                              msg.sender._id === sender?._id ? "100%" : "-35px",
-                          }}
-                        >
-                          <button
-                            onClick={() => {
-                              handleCopyMessage(msg.content);
-                              toggleOptions(msg._id ?? "");
-                            }}
-                          >
-                            Copy
-                          </button>
-                          <button
-                            onClick={() => {
-                              toggleOptions(msg._id ?? "");
-                              if (
-                                confirm(
-                                  "Do You Really Want To Delete This Message??"
-                                )
-                              ) {
-                                handleDeleteMessage(msg._id ?? "");
-                              }
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {msg.voiceUrl && (
-                    <div
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        justifyContent:
-                          msg?.sender?._id === sender?._id ? "right" : "left",
-                      }}
-                    >
-                      <audio className="audio-player" controls>
-                        <source
-                          src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
-                          type="audio/mp3"
-                        />
-                        Your browser does not support the audio element.
-                      </audio>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="no-room-message" style={styles.noRoomMessage}>
-              <FaComments size={40} style={{ marginBottom: "10px" }} />
-              <p style={{ fontSize: "18px" }}>Join a room to start chatting!</p>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        <form
-          className="message-input"
-          onSubmit={sendMessage}
-          style={styles.form}
-        >
-          <input
-            value={room ? message : ""}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={
-              room ? "Type your message..." : "Join a room to send a message!"
-            }
-            className="input-field"
-            style={styles.inputField}
-            disabled={!room}
-          />
-          <div
-            className="voice-message-controls"
-            style={styles.voiceMessageControls}
-          >
-            {!isRecording ? (
-              <div
-                style={{
-                  boxSizing: "border-box",
-                  padding: "5px",
-                  cursor: "pointer",
-                  display: room ? "flex" : "none",
-                }}
-                onClick={handleStartRecording}
-              >
-                <FaMicrophone style={styles.icon} />
-              </div>
-            ) : (
-              <div
-                style={{
-                  boxSizing: "border-box",
-                  padding: "5px",
-                  cursor: "pointer",
-                  display: room ? "flex" : "none",
-                }}
-                onClick={handleStopRecording}
-              >
-                <FaStop style={styles.icon} />
-              </div>
-            )}
-          </div>
-          <button
-            type="submit"
-            className="send-btn"
-            style={styles.sendBtn}
-            disabled={!room}
-          >
-            <FaPaperPlane />
-          </button>
-        </form>
-      </div> */}
-
       <ChatArea
         message={message}
         setMessage={setMessage}
@@ -580,6 +339,8 @@ const Home: React.FC = () => {
         publicName={publicName}
         setRooms={setRooms}
         setRoom={setRoom}
+        pinMessage={pinMessage}
+        setPinMessage={setPinMessage}
       />
     </div>
   );

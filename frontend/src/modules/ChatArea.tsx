@@ -1,7 +1,6 @@
 import { CiClock2 } from "react-icons/ci";
-import { FaMicrophone, FaStop, FaPaperPlane, FaUserPlus } from "react-icons/fa";
-import { MdOutlineAttachFile } from "react-icons/md";
-import { TextField, InputAdornment, Dialog } from "@mui/material";
+import { FaUserPlus } from "react-icons/fa";
+import { Dialog } from "@mui/material";
 import {
   Modal,
   Box,
@@ -21,6 +20,7 @@ import axios from "axios";
 import { ProfileModal } from "./ProfileModal";
 import { TbLogout2 } from "react-icons/tb";
 import ChatInput from "./ChatInput";
+import Swal from "sweetalert2";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -39,13 +39,13 @@ interface ChatAreaProps {
   setRooms: any;
   setRoom: any;
   setShownRoomName: any;
+  pinMessage: Message | null;
+  setPinMessage: any;
 }
 
 function ChatArea({
   offlineUsers,
-  setOfflineUsers,
   onlineUsers,
-  setOnlineUsers,
   socket,
   sender,
   recipient,
@@ -58,6 +58,8 @@ function ChatArea({
   setRooms,
   setRoom,
   setShownRoomName,
+  pinMessage,
+  setPinMessage,
 }: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -169,7 +171,54 @@ function ChatArea({
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    socket?.emit("deleteMessage", messageId);
+    Swal.fire({
+      title: "Delete Message",
+      text: "Do you want to delete this message?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete for Everyone",
+      cancelButtonText: "Cancel",
+      showDenyButton: true,
+      denyButtonText: "Delete for Me",
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        // Emit event to delete for everyone
+        socket?.emit("deleteMessage", {
+          messageId,
+          userId: sender?._id,
+          deleteForEveryone: true,
+        });
+      } else if (result.isDenied) {
+        // Emit event to delete for me
+        socket?.emit("deleteMessage", {
+          messageId,
+          userId: sender?._id,
+          deleteForEveryone: false,
+        });
+      }
+    });
+  };
+
+  const handlePinMessage = async (message: Message) => {
+    Swal.fire({
+      title: "Pin Message",
+      text: "Do you want to pin this message?",
+      icon: "question",
+      showCancelButton: true,
+      cancelButtonText: "Cancel",
+      confirmButtonText: "Pin",
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        socket?.emit("pinMessage", {
+          room,
+          messageId: message._id,
+        });
+      }
+    });
+  };
+
+  const handleSaveMessage = (message: Message) => {
+    socket?.emit("saveMessage", { userId: sender?._id, message });
   };
 
   const handleCopyMessage = (message: string) => {
@@ -333,6 +382,41 @@ function ChatArea({
           })}
         </h2>
 
+        {/* Pinned Message Section */}
+        {pinMessage && (
+          <div
+            style={{
+              backgroundColor: "#f0f0f0",
+              borderRadius: "8px",
+              padding: "10px",
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <p style={{ margin: "0", fontWeight: "bold" }}>
+                Pinned Message from {pinMessage?.sender?.username}
+              </p>
+              <p style={{ margin: "0", fontSize: "0.9rem" }}>
+                {pinMessage?.content}
+              </p>
+            </div>
+            <button
+              onClick={() => setPinMessage(null)}
+              style={{
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "red",
+              }}
+            >
+              Unpin
+            </button>
+          </div>
+        )}
+
         {typeof shownRoomName === "object" ? (
           <div
             style={{
@@ -363,81 +447,6 @@ function ChatArea({
           />
         )}
       </div>
-      {/* <Modal
-        open={openModal}
-        onClose={handleCloseModal}
-        aria-labelledby="modal-title"
-      >
-        <Box sx={ModalStyle}>
-          <Typography id="modal-title" variant="h6" component="h2">
-            Add Users to Room
-          </Typography>
-
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Online Users
-          </Typography>
-          <List>
-            {nonParticipantOnlineUsers.length > 0 ? (
-              nonParticipantOnlineUsers.map((user: IUser) => (
-                <ListItem
-                  key={user._id}
-                  sx={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <ListItemAvatar>
-                    <Avatar
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                      alt={user.username}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText primary={user.username} />
-                  <Button
-                    onClick={() => addUserToRoom({ userId: user._id, room })}
-                    sx={{ width: "auto" }}
-                  >
-                    <FaUserPlus size={20} />
-                  </Button>
-                </ListItem>
-              ))
-            ) : (
-              <Typography>No online users to add.</Typography>
-            )}
-          </List>
-
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Offline Users
-          </Typography>
-          <List>
-            {nonParticipantOfflineUsers.length > 0 ? (
-              nonParticipantOfflineUsers.map((user: IUser) => (
-                <ListItem
-                  key={user._id}
-                  sx={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <ListItemAvatar>
-                    <Avatar
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                      alt={user.username}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={user.username}
-                    // @ts-ignore
-                    secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
-                  />
-                  <Button
-                    onClick={() => addUserToRoom({ userId: user._id, room })}
-                    sx={{ width: "auto" }}
-                  >
-                    <FaUserPlus size={20} />
-                  </Button>
-                </ListItem>
-              ))
-            ) : (
-              <Typography>No offline users to add.</Typography>
-            )}
-          </List>
-        </Box>
-      </Modal> */}
 
       <Modal
         open={openModal}
@@ -590,8 +599,8 @@ function ChatArea({
                       >
                         <button
                           onClick={() => {
-                            handleCopyMessage(msg.content);
                             toggleOptions(msg._id ?? "");
+                            handleCopyMessage(msg.content);
                           }}
                         >
                           Copy
@@ -599,16 +608,26 @@ function ChatArea({
                         <button
                           onClick={() => {
                             toggleOptions(msg._id ?? "");
-                            if (
-                              confirm(
-                                "Do You Really Want To Delete This Message??"
-                              )
-                            ) {
-                              handleDeleteMessage(msg._id ?? "");
-                            }
+                            handleDeleteMessage(msg._id ?? "");
                           }}
                         >
                           Delete
+                        </button>
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handlePinMessage(msg);
+                          }}
+                        >
+                          Pin
+                        </button>
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleSaveMessage(msg);
+                          }}
+                        >
+                          Save
                         </button>
                       </div>
                     )}

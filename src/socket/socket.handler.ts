@@ -43,6 +43,7 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("joinRoom", async (data) => {
       const { userId, room } = data;
+
       if (!userId) {
         socket.join(data);
       } else {
@@ -90,8 +91,32 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
+    socket.on("pinMessage", async ({ room, messageId }: any) => {
+      console.log(room, messageId);
+    
+      try {
+        // Find the message and update its isPinned status
+        const result = await ChatMessageModel.updateOne(
+          { _id: messageId, room },
+          { $set: { isPinned: true } }
+        );
+    
+        if (result.modifiedCount > 0) {
+          // Emit the response if the message was successfully pinned
+          io.to(room).emit("pinMessageResponse", { room, messageId });
+        } else {
+          socket.emit("error", { error: "Failed to pin the message" });
+        }
+      } catch (error) {
+        console.error("Error pinning message:", error);
+        socket.emit("error", { error: "Failed to pin the message" });
+      }
+    });
+    
+    
     socket.on("getHistory", async (roomName) => {
       try {
+        const userId = socket.handshake.query.userId;
         const ids = !roomName._id ? roomName?.split("-") : roomName._id;
         const isPrivateChat =
           ids.length === 2 &&
@@ -116,6 +141,8 @@ export const handleSocketConnections = (io: Server) => {
                 recipient: senderObjectId,
               },
             ],
+            isDeleted: false, // Exclude globally deleted messages
+            deletedBy: { $not: { $elemMatch: { $eq: userId } } }, // Exclude messages deleted by this user
           })
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
@@ -123,11 +150,14 @@ export const handleSocketConnections = (io: Server) => {
         } else {
           history = await ChatMessageModel.find({
             room: roomName,
+            isDeleted: false, // Exclude globally deleted messages
+            deletedBy: { $not: { $elemMatch: { $eq: userId } } }, // Exclude messages deleted by this user
           })
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
             .sort({ timestamp: 1 });
         }
+
         socket.emit("sendHistory", history);
       } catch (error) {
         console.error("Error fetching chat history:", error);
@@ -181,18 +211,55 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("deleteMessage", async (messageId) => {
-      await ChatMessageModel.deleteOne({ _id: messageId })
-        .then(() => {
-          io.emit("deleteMessageResponse", { success: true, messageId });
-        })
-        .catch((err) => {
+    socket.on(
+      "deleteMessage",
+      async ({ messageId, userId, deleteForEveryone }) => {
+        try {
+          if (deleteForEveryone) {
+            const result = await ChatMessageModel.updateOne(
+              { _id: messageId },
+              { isDeleted: true }
+            );
+
+            if (result.modifiedCount > 0) {
+              io.emit("deleteMessageResponse", {
+                success: true,
+                messageId,
+                deletedByEveryone: true,
+              });
+            } else {
+              io.emit("deleteMessageResponse", {
+                success: false,
+                error: "Message not found or already deleted for everyone.",
+              });
+            }
+          } else {
+            const result = await ChatMessageModel.updateOne(
+              { _id: messageId },
+              { $addToSet: { deletedBy: userId } }
+            );
+
+            if (result.modifiedCount > 0) {
+              io.emit("deleteMessageResponse", {
+                success: true,
+                messageId,
+                deletedBy: userId,
+              });
+            } else {
+              io.emit("deleteMessageResponse", {
+                success: false,
+                error: "Message not found or already deleted for this user.",
+              });
+            }
+          }
+        } catch (err: any) {
           io.emit("deleteMessageResponse", {
             success: false,
             error: err.message,
           });
-        });
-    });
+        }
+      }
+    );
 
     socket.on("newRoom", async (data: any) => {
       const { roomName, senderId } = data;
@@ -295,11 +362,11 @@ export const handleSocketConnections = (io: Server) => {
           ],
         }).select("_id roomName isGroup createdAt participants");
 
-        socket.emit("userRooms", userRooms);
-
         userRooms.forEach((room: any) => {
           socket.join(room._id.toString());
         });
+
+        socket.emit("userRooms", userRooms);
       } catch (err) {
         console.error("Error logging in user:", err);
         socket.emit("error", "Login failed");

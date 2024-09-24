@@ -12,7 +12,6 @@ const ChatInput = ({
   setMessage,
   sender,
   recipient,
-  setMessages,
   handleStartRecording,
   handleStopRecording,
   isRecording,

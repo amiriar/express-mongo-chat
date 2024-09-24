@@ -1,4 +1,4 @@
-import mongoose, { Document, ObjectId, Schema, Types } from "mongoose";
+import mongoose, { Document, ObjectId, Schema } from "mongoose";
 
 export interface IUserInfo {
   _id: ObjectId | string;
@@ -17,11 +17,18 @@ export interface IChatMessage extends Document {
   status: "sent" | "delivered" | "seen";
   voiceUrl?: string;
   fileUrl?: string;
+  isEdited: boolean;
+  isPinned: boolean;
+  isDeleted: boolean;
+  isDeletedForMe: boolean;
+  replyTo: ObjectId | string;
+  forwardedFrom?: ObjectId | string;
+  deletedBy?: ObjectId | string;
 }
 
 const ChatMessageSchema = new Schema<IChatMessage>({
-  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  recipient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   content: { type: String, required: false },
   room: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
@@ -33,6 +40,14 @@ const ChatMessageSchema = new Schema<IChatMessage>({
   },
   voiceUrl: { type: String, required: false },
   fileUrl: { type: String, required: false },
+  isPinned: { type: Boolean, default: false },
+  isEdited: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false },
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "ChatMessage" },
+  deletedBy: [
+    { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
+  ],
 });
 
 const ChatMessageModel = mongoose.model<IChatMessage>(

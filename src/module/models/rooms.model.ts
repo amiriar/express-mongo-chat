@@ -3,6 +3,7 @@ import mongoose, { Schema, model, Document } from "mongoose";
 export interface IRoom extends Document {
   roomName: string;
   participants: Schema.Types.ObjectId[];
+  pinnedMessage: Schema.Types.ObjectId;
   isGroup: boolean;
   createdAt: Date;
   isPublic: boolean;
@@ -11,6 +12,7 @@ export interface IRoom extends Document {
 const RoomSchema = new Schema<IRoom>({
   roomName: { type: String, required: true, maxlength: 15 },
   participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  pinnedMessage: { type: Schema.Types.ObjectId, ref: "ChatMessage" },
   isGroup: { type: Boolean, default: false },
   isPublic: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
