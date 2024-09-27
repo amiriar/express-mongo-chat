@@ -26,14 +26,14 @@ export default defineConfig({
         theme_color: '#ffffff',
         icons: [
           {
-            src: '/icons/icon.png',
+            src: '/icons/icons8-telegram.svg',
             sizes: '192x192',
-            type: 'image/png'
+            // type: 'image/png'
           },
           {
-            src: '/icons/icon.png',
+            src: '/icons/icons8-telegram.svg',
             sizes: '512x512',
-            type: 'image/png'
+            // type: 'image/png'
           }
         ],
       }

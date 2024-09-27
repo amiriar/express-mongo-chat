@@ -24,6 +24,7 @@ const Home: React.FC = () => {
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
+  const [editMessage, setEditMessage] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -68,14 +69,6 @@ const Home: React.FC = () => {
   };
 
   const joinRoom = (roomName: any) => {
-    console.log("room");
-    console.log(room);
-    console.log("room");
-
-    console.log("shownRoomName");
-    console.log(shownRoomName);
-    console.log("shownRoomName");
-
     setRecipient(null);
     setShownRoomName(roomName);
     setRoom(roomName);
@@ -87,14 +80,6 @@ const Home: React.FC = () => {
   };
 
   const pvHandler = (user: any) => {
-    console.log("room");
-    console.log(room);
-    console.log("room");
-
-    console.log("shownRoomName");
-    console.log(shownRoomName);
-    console.log("shownRoomName");
-
     setShownRoomName("");
     setRecipient(user);
 
@@ -128,7 +113,7 @@ const Home: React.FC = () => {
 
       socket?.on("sendHistory", (messageData: Message[]) => {
         setMessages(messageData as Message[]);
-      })
+      });
 
       socket?.on(
         "deleteMessageResponse",
@@ -136,14 +121,6 @@ const Home: React.FC = () => {
           if (success) {
             setMessages((prevMessages) =>
               prevMessages.filter((msg) => {
-                console.log({
-                  success,
-                  messageId,
-                  error,
-                  deletedBy,
-                  deletedByEveryone,
-                });
-
                 const isCurrentMessage = msg._id === messageId;
                 const isDeletedForEveryone = deletedByEveryone;
                 const isDeletedForSender =
@@ -190,9 +167,8 @@ const Home: React.FC = () => {
   });
 
   socket?.on("pinMessageResponse", ({ room, messageId }: any) => {
-    setPinMessage(messageId)
+    setPinMessage(messageId);
     console.log(`pinned ${messageId} on: ${room}`);
-    
   });
 
   socket?.on("newRoomResponse", (roomData: Room[]) => {
@@ -223,6 +199,19 @@ const Home: React.FC = () => {
     socket?.on("fileUpload-respond", (messageData: Message) => {
       console.log(messageData);
       setMessages((prevMessages) => [...prevMessages, messageData]);
+    });
+
+    socket?.on("editMessageResponse", (messageData: Message) => {
+      setEditMessage(false);
+      setMessages((prevMessages) => {
+        const messageExists = prevMessages.some(
+          (msg) => msg._id === messageData._id
+        );
+        if (!messageExists) {
+          return [...prevMessages, messageData];
+        }
+        return prevMessages;
+      });
     });
 
     socket?.on("voice-message-response", handleVoiceMessageResponse);
@@ -341,6 +330,8 @@ const Home: React.FC = () => {
         setRoom={setRoom}
         pinMessage={pinMessage}
         setPinMessage={setPinMessage}
+        editMessage={editMessage}
+        setEditMessage={setEditMessage}
       />
     </div>
   );

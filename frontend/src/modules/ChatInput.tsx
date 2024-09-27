@@ -1,10 +1,11 @@
 import { InputAdornment, TextField } from "@mui/material";
 import { MdOutlineAttachFile } from "react-icons/md";
-import { FaMicrophone, FaStop } from "react-icons/fa";
+import { FaMicrophone, FaReply, FaStop } from "react-icons/fa";
 import { IoSend } from "react-icons/io5";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { Message } from "./types/types";
+import { TiTick } from "react-icons/ti";
 
 const ChatInput = ({
   room,
@@ -17,6 +18,7 @@ const ChatInput = ({
   isRecording,
   socket,
   publicName,
+  editMessage,
 }: any) => {
   const uploadFileHandler = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -92,7 +94,12 @@ const ChatInput = ({
         };
       }
 
-      socket.emit("sendMessage", messageData);
+      if (editMessage) {
+        socket.emit("editMessage", { senderId: sender._id, messageData });
+        return;
+      } else {
+        socket.emit("sendMessage", messageData);
+      }
 
       setMessage("");
     } else {
@@ -103,9 +110,20 @@ const ChatInput = ({
   return (
     <form
       className="message-input"
-      style={{ display: "flex", alignItems: "center" }}
+      style={{ display: "flex", alignItems: "center", flexDirection: "column" }}
       onSubmit={sendMessage}
     >
+      <div style={{ display: "flex", margin:"5px 0" }}>
+        <span>
+          <FaReply style={styles.icon} />
+        </span>
+        <span>
+          {
+            // selec
+          }
+
+        </span>
+      </div>
       <TextField
         value={room ? message : ""}
         onChange={(e) => setMessage(e.target.value)}
@@ -175,7 +193,11 @@ const ChatInput = ({
                   marginLeft: "20px",
                 }}
               >
-                <IoSend style={styles.icon} />
+                {editMessage ? (
+                  <TiTick style={styles.icon} size={35} />
+                ) : (
+                  <IoSend style={styles.icon} />
+                )}
               </button>
             </InputAdornment>
           ),

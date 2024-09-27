@@ -41,6 +41,8 @@ interface ChatAreaProps {
   setShownRoomName: any;
   pinMessage: Message | null;
   setPinMessage: any;
+  setEditMessage: any;
+  editMessage: boolean;
 }
 
 function ChatArea({
@@ -60,6 +62,8 @@ function ChatArea({
   setShownRoomName,
   pinMessage,
   setPinMessage,
+  setEditMessage,
+  editMessage,
 }: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -75,6 +79,7 @@ function ChatArea({
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
   );
+
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -83,10 +88,8 @@ function ChatArea({
   const addUserToRoom = (data: { userId: string; room: string }) => {
     const { userId } = data;
 
-    // Emit socket event to add user to the room
     socket?.emit("joinRoom", data);
 
-    // Update the state to remove the user from online/offline users list
     setNonParticipantOnlineUsers((prevUsers) =>
       prevUsers.filter((user) => user._id !== userId)
     );
@@ -221,6 +224,20 @@ function ChatArea({
     socket?.emit("saveMessage", { userId: sender?._id, message });
   };
 
+  const handleEditMessage = (message: Message) => {
+    if (sender?._id === message.sender._id) {
+      setEditMessage(true);
+      setMessage(message.content);
+    } else {
+      Swal.fire({
+        title: "Edit Message",
+        text: "You Can't Edit This Message",
+        icon: "error",
+        confirmButtonText: "Dismiss",
+      });
+    }
+  };
+
   const handleCopyMessage = (message: string) => {
     navigator.clipboard.writeText(message);
   };
@@ -294,7 +311,7 @@ function ChatArea({
   const [open, setOpen] = useState(false); // Modal open state
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(
     null
-  ); // Store selected recipient
+  );
 
   const profileHandler = (recipient: Recipient | null) => {
     if (recipient?.username) {
@@ -597,22 +614,17 @@ function ChatArea({
                             msg.sender._id === sender?._id ? "100%" : "-35px",
                         }}
                       >
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handleCopyMessage(msg.content);
-                          }}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handleDeleteMessage(msg._id ?? "");
-                          }}
-                        >
-                          Delete
-                        </button>
+                        {!msg.fileUrl && !msg.voiceUrl && (
+                          <button
+                            onClick={() => {
+                              toggleOptions(msg._id ?? "");
+                              handleCopyMessage(msg.content);
+                            }}
+                          >
+                            Copy
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             toggleOptions(msg._id ?? "");
@@ -628,6 +640,26 @@ function ChatArea({
                           }}
                         >
                           Save
+                        </button>
+                        {!msg.fileUrl &&
+                          !msg.voiceUrl &&
+                          sender?._id === msg.sender._id && (
+                            <button
+                              onClick={() => {
+                                toggleOptions(msg._id ?? "");
+                                handleEditMessage(msg);
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleDeleteMessage(msg._id ?? "");
+                          }}
+                        >
+                          Delete
                         </button>
                       </div>
                     )}
@@ -747,72 +779,6 @@ function ChatArea({
         <div ref={chatEndRef} />
       </div>
 
-      {/* <form
-        className="message-input"
-        onSubmit={sendMessage}
-        style={styles.form}
-      >
-        <TextField
-          value={room ? message : ""}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={
-            room ? "Type your message..." : "Join a room to send a message!"
-          }
-          className="input-field"
-          style={styles.inputField}
-          disabled={!room}
-          variant="outlined"
-          fullWidth
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <MdOutlineAttachFile size={20} style={{ padding: "5px", cursor:"pointer" }} onClick={uploadFileHandler} />
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        <div
-          className="voice-message-controls"
-          style={styles.voiceMessageControls}
-        >
-          {!isRecording ? (
-            <div
-              style={{
-                boxSizing: "border-box",
-                padding: "5px",
-                cursor: "pointer",
-                display: room ? "flex" : "none",
-              }}
-              onClick={handleStartRecording}
-            >
-              <FaMicrophone style={styles.icon} />
-            </div>
-          ) : (
-            <div
-              style={{
-                boxSizing: "border-box",
-                padding: "5px",
-                cursor: "pointer",
-                display: room ? "flex" : "none",
-              }}
-              onClick={handleStopRecording}
-            >
-              <FaStop style={styles.icon} />
-            </div>
-          )}
-        </div>
-
-        <button
-          type="submit"
-          className="send-btn"
-          style={styles.sendBtn}
-          disabled={!room}
-        >
-          <FaPaperPlane />
-        </button>
-      </form> */}
-
       <ChatInput
         message={message}
         setMessage={setMessage}
@@ -824,6 +790,7 @@ function ChatArea({
         isRecording={isRecording}
         socket={socket}
         publicName={publicName}
+        editMessage={editMessage}
       />
     </div>
   );

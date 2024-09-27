@@ -2,9 +2,6 @@ import mongoose from "mongoose";
 import ChatMessageModel from "../module/models/chatMessage.model";
 import UserModel, { IUser } from "../module/models/user.model";
 import { Server, Socket } from "socket.io";
-import path from "path";
-import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
 import RoomModel from "../module/models/rooms.model";
 import { createPublicRooms } from "../common/helper/Helper";
 
@@ -51,13 +48,14 @@ export const handleSocketConnections = (io: Server) => {
           { _id: room._id },
           { $addToSet: { participants: userId } }
         );
-        // const rooms = await RoomModel.find({ participants: { $in: [userId] } });
+
         const userRooms = await RoomModel.find({
           $or: [
             { isPublic: true },
             { participants: { $in: [User?._id?.toString()] } },
           ],
         }).select("_id roomName isGroup createdAt participants");
+
         io.emit("newRoomResponse", userRooms);
       }
     });
@@ -102,7 +100,6 @@ export const handleSocketConnections = (io: Server) => {
         );
     
         if (result.modifiedCount > 0) {
-          // Emit the response if the message was successfully pinned
           io.to(room).emit("pinMessageResponse", { room, messageId });
         } else {
           socket.emit("error", { error: "Failed to pin the message" });
@@ -112,7 +109,6 @@ export const handleSocketConnections = (io: Server) => {
         socket.emit("error", { error: "Failed to pin the message" });
       }
     });
-    
     
     socket.on("getHistory", async (roomName) => {
       try {
@@ -211,8 +207,7 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on(
-      "deleteMessage",
+    socket.on("deleteMessage",
       async ({ messageId, userId, deleteForEveryone }) => {
         try {
           if (deleteForEveryone) {
