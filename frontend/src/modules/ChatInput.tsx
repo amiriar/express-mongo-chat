@@ -113,17 +113,6 @@ const ChatInput = ({
       style={{ display: "flex", alignItems: "center", flexDirection: "column" }}
       onSubmit={sendMessage}
     >
-      <div style={{ display: "flex", margin:"5px 0" }}>
-        <span>
-          <FaReply style={styles.icon} />
-        </span>
-        <span>
-          {
-            // selec
-          }
-
-        </span>
-      </div>
       <TextField
         value={room ? message : ""}
         onChange={(e) => setMessage(e.target.value)}
@@ -181,24 +170,37 @@ const ChatInput = ({
                 )}
               </button>
 
-              <button
-                type="submit"
-                disabled={!room}
-                style={{
-                  border: "none",
-                  background: "none",
-                  display: room ? "flex" : "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  marginLeft: "20px",
-                }}
-              >
-                {editMessage ? (
-                  <TiTick style={styles.icon} size={35} />
-                ) : (
+              {editMessage ? (
+                <button
+                  type="submit"
+                  disabled={!room}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    display: room ? "flex" : "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    marginLeft: "20px",
+                  }}
+                >
                   <IoSend style={styles.icon} />
-                )}
-              </button>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!room}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    display: room ? "flex" : "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    marginLeft: "20px",
+                  }}
+                >
+                  <IoSend style={styles.icon} />
+                </button>
+              )}
             </InputAdornment>
           ),
         }}

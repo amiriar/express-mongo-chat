@@ -1,5 +1,5 @@
 import { CiClock2 } from "react-icons/ci";
-import { FaUserPlus } from "react-icons/fa";
+import { FaReply, FaUserPlus } from "react-icons/fa";
 import { Dialog } from "@mui/material";
 import {
   Modal,
@@ -21,6 +21,7 @@ import { ProfileModal } from "./ProfileModal";
 import { TbLogout2 } from "react-icons/tb";
 import ChatInput from "./ChatInput";
 import Swal from "sweetalert2";
+import { MdOutlineModeEditOutline } from "react-icons/md";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -42,7 +43,7 @@ interface ChatAreaProps {
   pinMessage: Message | null;
   setPinMessage: any;
   setEditMessage: any;
-  editMessage: boolean;
+  editMessage: Message | null;
 }
 
 function ChatArea({
@@ -226,7 +227,7 @@ function ChatArea({
 
   const handleEditMessage = (message: Message) => {
     if (sender?._id === message.sender._id) {
-      setEditMessage(true);
+      setEditMessage(message);
       setMessage(message.content);
     } else {
       Swal.fire({
@@ -683,34 +684,6 @@ function ChatArea({
                     </audio>
                   </div>
                 )}
-                {/* {msg.fileUrl && (
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent:
-                        msg?.sender?._id === sender?._id ? "right" : "left",
-                    }}
-                  >
-                    {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
-                      <img
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                        alt="Uploaded media"
-                        style={{ maxWidth: "400px", borderRadius: "8px" }}
-                      />
-                    ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
-                      <video
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                        controls
-                        style={{ maxWidth: "400px", borderRadius: "8px" }}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <p>Unsupported file format</p>
-                    )}
-                  </div>
-                )} */}
 
                 {msg.fileUrl && (
                   <div
@@ -778,6 +751,26 @@ function ChatArea({
         )}
         <div ref={chatEndRef} />
       </div>
+
+      {editMessage ? (
+        <div
+          style={{
+            display: "flex",
+            margin: "5px 0",
+            columnGap: "10px",
+            marginLeft: "5px",
+          }}
+        >
+          <span>
+            <MdOutlineModeEditOutline style={styles.icon} />
+          </span>
+          <span>
+            Editing You : {editMessage.content}
+          </span>
+        </div>
+      ) : (
+        ""
+      )}
 
       <ChatInput
         message={message}

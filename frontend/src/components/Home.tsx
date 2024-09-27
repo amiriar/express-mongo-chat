@@ -24,7 +24,7 @@ const Home: React.FC = () => {
   const [room, setRoom] = useState<string>("");
   const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
-  const [editMessage, setEditMessage] = useState<boolean>(false);
+  const [editMessage, setEditMessage] = useState<Message | null>(null);
 
   const navigate = useNavigate();
 
@@ -202,7 +202,7 @@ const Home: React.FC = () => {
     });
 
     socket?.on("editMessageResponse", (messageData: Message) => {
-      setEditMessage(false);
+      setEditMessage(messageData);
       setMessages((prevMessages) => {
         const messageExists = prevMessages.some(
           (msg) => msg._id === messageData._id
