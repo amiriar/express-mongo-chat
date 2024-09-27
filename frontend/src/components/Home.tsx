@@ -202,16 +202,13 @@ const Home: React.FC = () => {
     });
 
     socket?.on("editMessageResponse", (messageData: Message) => {
-      setEditMessage(messageData);
-      setMessages((prevMessages) => {
-        const messageExists = prevMessages.some(
-          (msg) => msg._id === messageData._id
-        );
-        if (!messageExists) {
-          return [...prevMessages, messageData];
-        }
-        return prevMessages;
-      });
+      setEditMessage(null);
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageData._id ? messageData : msg
+        )
+      );
     });
 
     socket?.on("voice-message-response", handleVoiceMessageResponse);

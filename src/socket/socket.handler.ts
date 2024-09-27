@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
-import ChatMessageModel from "../module/models/chatMessage.model";
+import ChatMessageModel, {
+  IChatMessage,
+} from "../module/models/chatMessage.model";
 import UserModel, { IUser } from "../module/models/user.model";
 import { Server, Socket } from "socket.io";
 import RoomModel from "../module/models/rooms.model";
@@ -91,14 +93,14 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("pinMessage", async ({ room, messageId }: any) => {
       console.log(room, messageId);
-    
+
       try {
         // Find the message and update its isPinned status
         const result = await ChatMessageModel.updateOne(
           { _id: messageId, room },
           { $set: { isPinned: true } }
         );
-    
+
         if (result.modifiedCount > 0) {
           io.to(room).emit("pinMessageResponse", { room, messageId });
         } else {
@@ -109,7 +111,19 @@ export const handleSocketConnections = (io: Server) => {
         socket.emit("error", { error: "Failed to pin the message" });
       }
     });
-    
+
+    socket.on("editMessage", async (data) => {
+      const { messageData } = data;
+
+      const newMessage = await ChatMessageModel.findOneAndUpdate(
+        { _id: messageData._id },
+        { isEdited: true, content: messageData.content },
+        { new: true }
+      ).populate("sender", "_id username profile");
+
+      socket.emit("editMessageResponse", newMessage);
+    });
+
     socket.on("getHistory", async (roomName) => {
       try {
         const userId = socket.handshake.query.userId;
@@ -207,7 +221,8 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("deleteMessage",
+    socket.on(
+      "deleteMessage",
       async ({ messageId, userId, deleteForEveryone }) => {
         try {
           if (deleteForEveryone) {

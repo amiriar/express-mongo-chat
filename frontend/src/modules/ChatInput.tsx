@@ -1,5 +1,5 @@
 import { InputAdornment, TextField } from "@mui/material";
-import { MdOutlineAttachFile } from "react-icons/md";
+import { MdOutlineAttachFile, MdOutlineModeEditOutline } from "react-icons/md";
 import { FaMicrophone, FaReply, FaStop } from "react-icons/fa";
 import { IoSend } from "react-icons/io5";
 import axios from "axios";
@@ -19,6 +19,7 @@ const ChatInput = ({
   socket,
   publicName,
   editMessage,
+  setEditMessage,
 }: any) => {
   const uploadFileHandler = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -95,12 +96,14 @@ const ChatInput = ({
       }
 
       if (editMessage) {
-        socket.emit("editMessage", { senderId: sender._id, messageData });
-        return;
+        messageData._id = editMessage._id;
+
+        setEditMessage(null);
+
+        socket.emit("editMessage", { messageData });
       } else {
         socket.emit("sendMessage", messageData);
       }
-
       setMessage("");
     } else {
       alert("Please select a room or user to send the message.");
@@ -170,37 +173,24 @@ const ChatInput = ({
                 )}
               </button>
 
-              {editMessage ? (
-                <button
-                  type="submit"
-                  disabled={!room}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    display: room ? "flex" : "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    marginLeft: "20px",
-                  }}
-                >
+              <button
+                type="submit"
+                disabled={!room}
+                style={{
+                  border: "none",
+                  background: "none",
+                  display: room ? "flex" : "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  marginLeft: "20px",
+                }}
+              >
+                {editMessage ? (
+                  <MdOutlineModeEditOutline style={styles.icon} />
+                ) : (
                   <IoSend style={styles.icon} />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!room}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    display: room ? "flex" : "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    marginLeft: "20px",
-                  }}
-                >
-                  <IoSend style={styles.icon} />
-                </button>
-              )}
+                )}
+              </button>
             </InputAdornment>
           ),
         }}

@@ -784,6 +784,7 @@ function ChatArea({
         socket={socket}
         publicName={publicName}
         editMessage={editMessage}
+        setEditMessage={setEditMessage}
       />
     </div>
   );
