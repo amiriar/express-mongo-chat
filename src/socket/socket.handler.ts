@@ -132,8 +132,8 @@ export const handleSocketConnections = (io: Server) => {
     socket.on("pinMessage", async ({ room, messageId }: any) => {
       try {
         await ChatMessageModel.updateMany(
-          { room, isPinned: true }, 
-          { $set: { isPinned: false } } 
+          { room, isPinned: true },
+          { $set: { isPinned: false } }
         );
 
         const result = await ChatMessageModel.findOneAndUpdate(
@@ -157,7 +157,7 @@ export const handleSocketConnections = (io: Server) => {
       try {
         const result = await ChatMessageModel.findOneAndUpdate(
           { _id: messageId, room },
-          { $set: { isPinned: false }, _id: 1, content: 1, sender: 1 },
+          { $set: { isPinned: false } },
           { new: true }
         ).populate("sender", "username");
 

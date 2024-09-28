@@ -119,10 +119,8 @@ function ChatArea({
   useEffect(() => {
     socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
       if (room === responseRoom) {
-        // Set the pinned message
         setPinMessage(message);
 
-        // Update the messages list to mark the message as pinned
         setMessages((prevMessages: any) =>
           prevMessages.map((msg: Message) =>
             msg._id === message._id
@@ -137,10 +135,8 @@ function ChatArea({
       "unpinMessageResponse",
       ({ room: responseRoom, message }: any) => {
         if (room === responseRoom) {
-          // Clear the pinned message
           setPinMessage(null);
 
-          // Update the messages list to unpin the message
           setMessages((prevMessages: any) =>
             prevMessages.map((msg: Message) =>
               msg._id === message._id ? { ...msg, isPinned: false } : msg
@@ -150,7 +146,6 @@ function ChatArea({
       }
     );
 
-    // Cleanup the socket event listeners when the component unmounts or room changes
     return () => {
       socket?.off("pinMessageResponse");
       socket?.off("unpinMessageResponse");
@@ -481,6 +476,10 @@ function ChatArea({
     }
   };
 
+  const handleReplyMessage = (message: Message) => {
+    console.log(message);
+    
+  }
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
       <div
@@ -768,6 +767,14 @@ function ChatArea({
                           msg.sender._id === sender?._id ? "100%" : "-35px",
                       }}
                     >
+                      <button
+                        onClick={() => {
+                          toggleOptions(msg._id ?? "");
+                          handleReplyMessage(msg);
+                        }}
+                      >
+                        Reply
+                      </button>
                       {!msg.fileUrl && !msg.voiceUrl && (
                         <button
                           onClick={() => {
