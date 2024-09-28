@@ -166,10 +166,10 @@ const Home: React.FC = () => {
     });
   });
 
-  socket?.on("pinMessageResponse", ({ room, messageId }: any) => {
-    setPinMessage(messageId);
-    console.log(`pinned ${messageId} on: ${room}`);
-  });
+  // socket?.on("pinMessageResponse", ({ room, message }: any) => {
+  //   setPinMessage(message);
+  //   console.log(`pinned ${message} on: ${room}`);
+  // });
 
   socket?.on("newRoomResponse", (roomData: Room[]) => {
     const userRooms = roomData.filter((room) =>
@@ -311,6 +311,7 @@ const Home: React.FC = () => {
       <ChatArea
         message={message}
         setMessage={setMessage}
+        setMessages={setMessages}
         messages={messages}
         shownRoomName={shownRoomName}
         setShownRoomName={setShownRoomName}

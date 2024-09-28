@@ -185,4 +185,11 @@ h2 {
   cursor: pointer;
 }
 
+.pinned-message-display {
+  display: none;
+}
+
+.pinned-message-display.show {
+  display: flex;
+}
 

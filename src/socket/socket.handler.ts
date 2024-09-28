@@ -91,24 +91,84 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("pinMessage", async ({ room, messageId }: any) => {
-      console.log(room, messageId);
+    // socket.on("pinMessage", async ({ room, messageId }: any) => {
+    //   try {
+    //     const result = await ChatMessageModel.findOneAndUpdate(
+    //       { _id: messageId, room },
+    //       { $set: { isPinned: true } },
+    //       { new: true }
+    //     ).populate("sender", "username");
 
+    //     if (result) {
+    //       io.to(room).emit("pinMessageResponse", { room, message: result });
+    //     } else {
+    //       socket.emit("error", { error: "Failed to pin the message" });
+    //     }
+    //   } catch (error) {
+    //     console.error("Error pinning message:", error);
+    //     socket.emit("error", { error: "Failed to pin the message" });
+    //   }
+    // });
+
+    // socket.on("unpinMessage", async ({ room, messageId }: any) => {
+    //   try {
+    //     const result = await ChatMessageModel.findOneAndUpdate(
+    //       { _id: messageId, room },
+    //       { $set: { isPinned: false }, _id: 1, content: 1, sender: 1 },
+    //       { new: true }
+    //     ).populate("sender", "username");
+
+    //     if (result) {
+    //       io.to(room).emit("pinMessageResponse", { room, message: result });
+    //     } else {
+    //       socket.emit("error", { error: "Failed to pin the message" });
+    //     }
+    //   } catch (error) {
+    //     console.error("Error pinning message:", error);
+    //     socket.emit("error", { error: "Failed to pin the message" });
+    //   }
+    // });
+
+    socket.on("pinMessage", async ({ room, messageId }: any) => {
       try {
-        // Find the message and update its isPinned status
-        const result = await ChatMessageModel.updateOne(
-          { _id: messageId, room },
-          { $set: { isPinned: true } }
+        await ChatMessageModel.updateMany(
+          { room, isPinned: true }, 
+          { $set: { isPinned: false } } 
         );
 
-        if (result.modifiedCount > 0) {
-          io.to(room).emit("pinMessageResponse", { room, messageId });
+        const result = await ChatMessageModel.findOneAndUpdate(
+          { _id: messageId, room },
+          { $set: { isPinned: true } },
+          { new: true }
+        ).populate("sender", "username");
+
+        if (result) {
+          io.to(room).emit("pinMessageResponse", { room, message: result });
         } else {
           socket.emit("error", { error: "Failed to pin the message" });
         }
       } catch (error) {
         console.error("Error pinning message:", error);
         socket.emit("error", { error: "Failed to pin the message" });
+      }
+    });
+
+    socket.on("unpinMessage", async ({ room, messageId }: any) => {
+      try {
+        const result = await ChatMessageModel.findOneAndUpdate(
+          { _id: messageId, room },
+          { $set: { isPinned: false }, _id: 1, content: 1, sender: 1 },
+          { new: true }
+        ).populate("sender", "username");
+
+        if (result) {
+          io.to(room).emit("unpinMessageResponse", { room, message: result });
+        } else {
+          socket.emit("error", { error: "Failed to unpin the message" });
+        }
+      } catch (error) {
+        console.error("Error unpinning message:", error);
+        socket.emit("error", { error: "Failed to unpin the message" });
       }
     });
 

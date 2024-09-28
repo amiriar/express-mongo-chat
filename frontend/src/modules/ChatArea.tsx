@@ -1,5 +1,5 @@
 import { CiClock2 } from "react-icons/ci";
-import { FaReply, FaUserPlus } from "react-icons/fa";
+import { FaUserPlus } from "react-icons/fa";
 import { Dialog } from "@mui/material";
 import {
   Modal,
@@ -22,6 +22,7 @@ import { TbLogout2 } from "react-icons/tb";
 import ChatInput from "./ChatInput";
 import Swal from "sweetalert2";
 import { MdOutlineModeEditOutline } from "react-icons/md";
+import { GrFormPin } from "react-icons/gr";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -34,6 +35,7 @@ interface ChatAreaProps {
   shownRoomName: string;
   message: string;
   setMessage: any;
+  setMessages: any;
   publicName: string;
   setOfflineUsers: any;
   setOnlineUsers: any;
@@ -57,6 +59,7 @@ function ChatArea({
   messages,
   message,
   setMessage,
+  setMessages,
   publicName,
   setRooms,
   setRoom,
@@ -83,8 +86,76 @@ function ChatArea({
 
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+
+  const pinnedMessageRef = useRef<HTMLDivElement | null>(null);
+  const pinnedMessageDisplayRef = useRef<HTMLDivElement | null>(null);
+  const [currentPinnedMessage, setCurrentPinnedMessage] =
+    useState<Message | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // useEffect(() => {
+  //   socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
+  //     if (room === responseRoom) {
+  //       setPinMessage(message);
+  //     }
+  //   });
+
+  //   socket?.on(
+  //     "unpinMessageResponse",
+  //     ({ room: responseRoom, message }: any) => {
+  //       if (room === responseRoom) {
+  //         setPinMessage(null);
+  //       }
+  //     }
+  //   );
+
+  //   return () => {
+  //     socket?.off("pinMessageResponse");
+  //     socket?.off("unpinMessageResponse");
+  //   };
+  // }, [room, socket]);
+
+  useEffect(() => {
+    socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
+      if (room === responseRoom) {
+        // Set the pinned message
+        setPinMessage(message);
+
+        // Update the messages list to mark the message as pinned
+        setMessages((prevMessages: any) =>
+          prevMessages.map((msg: Message) =>
+            msg._id === message._id
+              ? { ...msg, isPinned: true }
+              : { ...msg, isPinned: false }
+          )
+        );
+      }
+    });
+
+    socket?.on(
+      "unpinMessageResponse",
+      ({ room: responseRoom, message }: any) => {
+        if (room === responseRoom) {
+          // Clear the pinned message
+          setPinMessage(null);
+
+          // Update the messages list to unpin the message
+          setMessages((prevMessages: any) =>
+            prevMessages.map((msg: Message) =>
+              msg._id === message._id ? { ...msg, isPinned: false } : msg
+            )
+          );
+        }
+      }
+    );
+
+    // Cleanup the socket event listeners when the component unmounts or room changes
+    return () => {
+      socket?.off("pinMessageResponse");
+      socket?.off("unpinMessageResponse");
+    };
+  }, [room, socket]);
 
   const addUserToRoom = (data: { userId: string; room: string }) => {
     const { userId } = data;
@@ -204,21 +275,39 @@ function ChatArea({
   };
 
   const handlePinMessage = async (message: Message) => {
-    Swal.fire({
-      title: "Pin Message",
-      text: "Do you want to pin this message?",
-      icon: "question",
-      showCancelButton: true,
-      cancelButtonText: "Cancel",
-      confirmButtonText: "Pin",
-    }).then((result: any) => {
-      if (result.isConfirmed) {
-        socket?.emit("pinMessage", {
-          room,
-          messageId: message._id,
-        });
-      }
-    });
+    if (message.isPinned) {
+      Swal.fire({
+        title: "Unpin Message",
+        text: "Do you want to unpin this message?",
+        icon: "question",
+        showCancelButton: true,
+        cancelButtonText: "Cancel",
+        confirmButtonText: "Unpin",
+      }).then((result: any) => {
+        if (result.isConfirmed) {
+          socket?.emit("unpinMessage", {
+            room,
+            messageId: message._id,
+          });
+        }
+      });
+    } else {
+      Swal.fire({
+        title: "Pin Message",
+        text: "Do you want to pin this message?",
+        icon: "question",
+        showCancelButton: true,
+        cancelButtonText: "Cancel",
+        confirmButtonText: "Pin",
+      }).then((result: any) => {
+        if (result.isConfirmed) {
+          socket?.emit("pinMessage", {
+            room,
+            messageId: message._id,
+          });
+        }
+      });
+    }
   };
 
   const handleSaveMessage = (message: Message) => {
@@ -353,6 +442,45 @@ function ChatArea({
     setIsFullScreen(!isFullScreen);
   };
 
+  useEffect(() => {
+    const firstPinnedMessage = messages.find((msg: Message) => msg.isPinned);
+    setCurrentPinnedMessage(firstPinnedMessage || null);
+  }, [messages]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting && currentPinnedMessage) {
+            pinnedMessageDisplayRef.current?.classList.add("show");
+          } else {
+            pinnedMessageDisplayRef.current?.classList.remove("show");
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (pinnedMessageRef.current) {
+      observer.observe(pinnedMessageRef.current);
+    }
+
+    return () => {
+      if (pinnedMessageRef.current) {
+        observer.unobserve(pinnedMessageRef.current);
+      }
+    };
+  }, [currentPinnedMessage]);
+
+  const scrollToPinnedMessage = () => {
+    if (pinnedMessageRef.current) {
+      pinnedMessageRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  };
+
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
       <div
@@ -399,41 +527,6 @@ function ChatArea({
             return null;
           })}
         </h2>
-
-        {/* Pinned Message Section */}
-        {pinMessage && (
-          <div
-            style={{
-              backgroundColor: "#f0f0f0",
-              borderRadius: "8px",
-              padding: "10px",
-              marginTop: "10px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <p style={{ margin: "0", fontWeight: "bold" }}>
-                Pinned Message from {pinMessage?.sender?.username}
-              </p>
-              <p style={{ margin: "0", fontSize: "0.9rem" }}>
-                {pinMessage?.content}
-              </p>
-            </div>
-            <button
-              onClick={() => setPinMessage(null)}
-              style={{
-                backgroundColor: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "red",
-              }}
-            >
-              Unpin
-            </button>
-          </div>
-        )}
 
         {typeof shownRoomName === "object" ? (
           <div
@@ -507,7 +600,6 @@ function ChatArea({
             )}
           </List>
 
-          {/* Offline Users Section */}
           <Typography variant="subtitle1" sx={{ mt: 2 }}>
             Offline Users
           </Typography>
@@ -530,7 +622,7 @@ function ChatArea({
                     secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
                   />
                   <Button
-                    onClick={() => addUserToRoom({ userId: user._id, room })} // Use room correctly here
+                    onClick={() => addUserToRoom({ userId: user._id, room })}
                     sx={{ width: "auto" }}
                   >
                     <FaUserPlus size={20} />
@@ -544,45 +636,91 @@ function ChatArea({
         </Box>
       </Modal>
 
-      <div className="messages" style={{ overflowY: "scroll" }}>
-        {room ? (
-          messages.map((msg: Message) => {
-            return (
-              <div key={msg._id || msg.tempId} className="message-container">
-                <div
-                  className={`message ${
-                    msg?.sender?._id === sender?._id ? "sent" : "received"
-                  }`}
-                  style={{ minWidth: "200px" }}
+      <div className="messages" style={{ overflowY: "scroll", height: "100%" }}>
+        {currentPinnedMessage && (
+          <div
+            onClick={scrollToPinnedMessage}
+            ref={pinnedMessageDisplayRef}
+            style={{
+              cursor: "pointer",
+              position: "sticky",
+              top: "0",
+              zIndex: 1,
+              backgroundColor: "#f0f0f0",
+              borderRadius: "8px",
+              padding: "3px 10px",
+              marginBottom: "10px",
+              justifyContent: "space-between",
+              alignItems: "center",
+              boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.1)",
+            }}
+            className="pinned-message-display"
+          >
+            <div>
+              <p style={{ margin: "0", fontWeight: "bold" }}>
+                Pinned Message from {currentPinnedMessage?.sender?.username}:
+              </p>
+              <p style={{ margin: "0", fontSize: "0.9rem" }}>
+                {currentPinnedMessage?.content}
+              </p>
+            </div>
+            <button
+              style={{
+                backgroundColor: "transparent",
+                width: "100px",
+                border: "none",
+                color: "#000",
+              }}
+            >
+              <GrFormPin size={30} />
+            </button>
+          </div>
+        )}
+
+        {messages.map((msg: Message) => {
+          return (
+            <div
+              key={msg._id || msg.tempId}
+              className="message-container"
+              ref={msg.isPinned ? pinnedMessageRef : null} // Reference the pinned message for scrolling
+            >
+              <div
+                className={`message ${
+                  msg?.sender?._id === sender?._id ? "sent" : "received"
+                }`}
+                style={{ minWidth: "200px" }}
+              >
+                <p
+                  style={{
+                    textAlign:
+                      msg?.sender?._id === sender?._id ? "right" : "left",
+                    marginTop: "0px",
+                  }}
                 >
-                  <p
-                    style={{
-                      textAlign:
-                        msg?.sender?._id === sender?._id ? "right" : "left",
-                      marginTop: "0px",
-                    }}
-                  >
-                    {msg?.sender?.username}
-                  </p>
-                  <p
-                    style={{
-                      textAlign:
-                        msg?.sender?._id === sender?._id ? "right" : "left",
-                      margin: "5px 0 0 0",
-                      fontFamily: "IranYekan",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    {msg?.content}
-                  </p>
-                  <p
-                    className="timestamp"
-                    style={{
-                      textAlign:
-                        msg?.sender?._id === sender?._id ? "left" : "right",
-                      margin: "5px 0 0 0",
-                    }}
-                  >
+                  {msg?.sender?.username}
+                </p>
+                <p
+                  style={{
+                    textAlign:
+                      msg?.sender?._id === sender?._id ? "right" : "left",
+                    margin: "5px 0 0 0",
+                    fontFamily: "IranYekan",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {msg?.content}
+                </p>
+                <p
+                  className="timestamp"
+                  style={{
+                    textAlign:
+                      msg?.sender?._id === sender?._id ? "left" : "right",
+                    margin: "5px 0 0 0",
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>
                     {msg.isSending || !msg.timestamp ? (
                       <CiClock2 size={10} />
                     ) : msg.timestamp ? (
@@ -590,165 +728,175 @@ function ChatArea({
                     ) : (
                       "Unknown Time"
                     )}
-                  </p>
-                  <div className="message-options">
-                    <button
+                  </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "2px",
+                    }}
+                  >
+                    {msg.isPinned && (
+                      <span style={{ marginTop: "2px" }}>
+                        <GrFormPin size={13} />
+                      </span>
+                    )}
+                    {msg.isEdited && <span>edited</span>}
+                  </span>
+                </p>
+                <div className="message-options">
+                  <button
+                    style={{
+                      color: "red",
+                      width: "20px",
+                      position: "absolute",
+                      top: "-5px",
+                      right:
+                        msg?.sender?._id === sender?._id ? "100%" : "-35px",
+                    }}
+                    onClick={() => toggleOptions(msg._id ?? "")}
+                  >
+                    ⋮
+                  </button>
+                  {selectedMessageId === msg._id && (
+                    <div
+                      className="options-dropdown"
                       style={{
-                        color: "red",
-                        width: "20px",
                         position: "absolute",
-                        top: "-5px",
+                        top: "35px",
                         right:
-                          msg?.sender?._id === sender?._id ? "100%" : "-35px",
+                          msg.sender._id === sender?._id ? "100%" : "-35px",
                       }}
-                      onClick={() => toggleOptions(msg._id ?? "")}
                     >
-                      ⋮
-                    </button>
-                    {selectedMessageId === msg._id && (
-                      <div
-                        className="options-dropdown"
-                        style={{
-                          position: "absolute",
-                          top: "35px",
-                          right:
-                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                      {!msg.fileUrl && !msg.voiceUrl && (
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleCopyMessage(msg.content);
+                          }}
+                        >
+                          Copy
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          toggleOptions(msg._id ?? "");
+                          handlePinMessage(msg);
                         }}
                       >
-                        {!msg.fileUrl && !msg.voiceUrl && (
+                        {msg.isPinned ? "Unpin" : "Pin"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          toggleOptions(msg._id ?? "");
+                          handleSaveMessage(msg);
+                        }}
+                      >
+                        Save
+                      </button>
+                      {!msg.fileUrl &&
+                        !msg.voiceUrl &&
+                        sender?._id === msg.sender._id && (
                           <button
                             onClick={() => {
                               toggleOptions(msg._id ?? "");
-                              handleCopyMessage(msg.content);
+                              handleEditMessage(msg);
                             }}
                           >
-                            Copy
+                            Edit
                           </button>
                         )}
-
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handlePinMessage(msg);
-                          }}
-                        >
-                          Pin
-                        </button>
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handleSaveMessage(msg);
-                          }}
-                        >
-                          Save
-                        </button>
-                        {!msg.fileUrl &&
-                          !msg.voiceUrl &&
-                          sender?._id === msg.sender._id && (
-                            <button
-                              onClick={() => {
-                                toggleOptions(msg._id ?? "");
-                                handleEditMessage(msg);
-                              }}
-                            >
-                              Edit
-                            </button>
-                          )}
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handleDeleteMessage(msg._id ?? "");
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                      <button
+                        onClick={() => {
+                          toggleOptions(msg._id ?? "");
+                          handleDeleteMessage(msg._id ?? "");
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {msg.voiceUrl && (
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent:
-                        msg?.sender?._id === sender?._id ? "right" : "left",
-                    }}
-                  >
-                    <audio className="audio-player" controls>
-                      <source
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
-                        type="audio/mp3"
-                      />
-                      Your browser does not support the audio element.
-                    </audio>
-                  </div>
-                )}
+              </div>
 
-                {msg.fileUrl && (
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent:
-                        msg?.sender?._id === sender?._id ? "right" : "left",
-                    }}
-                  >
-                    {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
-                      <div>
-                        {/* Thumbnail Image */}
+              {msg.voiceUrl && (
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent:
+                      msg?.sender?._id === sender?._id ? "right" : "left",
+                  }}
+                >
+                  <audio className="audio-player" controls>
+                    <source
+                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
+                      type="audio/mp3"
+                    />
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              )}
+
+              {msg.fileUrl && (
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent:
+                      msg?.sender?._id === sender?._id ? "right" : "left",
+                  }}
+                >
+                  {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
+                    <div>
+                      {/* Thumbnail Image */}
+                      <img
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                        alt="Uploaded media"
+                        style={{
+                          maxWidth: "400px",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                        }}
+                        onClick={toggleFullScreen} // Trigger full screen on click
+                      />
+
+                      {/* Full Screen Dialog */}
+                      <Dialog
+                        open={isFullScreen}
+                        onClose={toggleFullScreen}
+                        fullScreen
+                      >
                         <img
                           src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                          alt="Uploaded media"
+                          alt="Uploaded media in full screen"
                           style={{
-                            maxWidth: "400px",
-                            borderRadius: "8px",
-                            cursor: "pointer",
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            backgroundColor: "black",
                           }}
-                          onClick={toggleFullScreen} // Trigger full screen on click
+                          onClick={toggleFullScreen} // Toggle back to normal size on click
                         />
-
-                        {/* Full Screen Dialog */}
-                        <Dialog
-                          open={isFullScreen}
-                          onClose={toggleFullScreen}
-                          fullScreen
-                        >
-                          <img
-                            src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                            alt="Uploaded media in full screen"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "contain",
-                              backgroundColor: "black",
-                            }}
-                            onClick={toggleFullScreen} // Toggle back to normal size on click
-                          />
-                        </Dialog>
-                      </div>
-                    ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
-                      <video
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                        controls
-                        style={{ maxWidth: "400px", borderRadius: "8px" }}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <p>Unsupported file format</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          <div className="no-room-message" style={styles.noRoomMessage}>
-            <FaComments size={40} style={{ marginBottom: "10px" }} />
-            <p style={{ fontSize: "18px" }}>Join a room to start chatting!</p>
-          </div>
-        )}
+                      </Dialog>
+                    </div>
+                  ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
+                    <video
+                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                      controls
+                      style={{ maxWidth: "400px", borderRadius: "8px" }}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <p>Unsupported file format</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div ref={chatEndRef} />
       </div>
 
@@ -764,9 +912,7 @@ function ChatArea({
           <span>
             <MdOutlineModeEditOutline style={styles.icon} />
           </span>
-          <span>
-            Editing You : {editMessage.content}
-          </span>
+          <span>Editing You : {editMessage.content}</span>
         </div>
       ) : (
         ""

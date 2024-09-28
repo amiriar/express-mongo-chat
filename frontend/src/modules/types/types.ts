@@ -13,6 +13,8 @@ export interface Message {
   voiceUrl?: string;
   fileUrl?: string;
   isSending: boolean;
+  isEdited: boolean;
+  isPinned: boolean;
 }
 
 export interface Sender {
