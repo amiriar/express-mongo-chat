@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-
 export interface Message {
   _id?: string;
   tempId: string;
@@ -15,6 +14,16 @@ export interface Message {
   isSending: boolean;
   isEdited: boolean;
   isPinned: boolean;
+  replyTo: ReplyTo;
+}
+
+export interface ReplyTo {
+  _id: mongoose.Types.ObjectId | string;
+  content?: string;
+  sender: Sender;
+  voiceUrl?: string;
+  fileUrl?: string;
+  timestamp: Date;
 }
 
 export interface Sender {

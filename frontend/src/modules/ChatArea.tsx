@@ -1,5 +1,10 @@
 import { CiClock2 } from "react-icons/ci";
-import { FaUserPlus } from "react-icons/fa";
+import {
+  FaArrowDown,
+  FaChevronDown,
+  FaReply,
+  FaUserPlus,
+} from "react-icons/fa";
 import { Dialog } from "@mui/material";
 import {
   Modal,
@@ -12,7 +17,7 @@ import {
   ListItemAvatar,
   Avatar,
 } from "@mui/material";
-import { FaComments } from "react-icons/fa";
+import { RxCross2 } from "react-icons/rx";
 import { IUser, Message, Recipient, Room, Sender } from "./types/types";
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
@@ -23,6 +28,7 @@ import ChatInput from "./ChatInput";
 import Swal from "sweetalert2";
 import { MdOutlineModeEditOutline } from "react-icons/md";
 import { GrFormPin } from "react-icons/gr";
+import { IoIosChatbubbles } from "react-icons/io";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -46,6 +52,8 @@ interface ChatAreaProps {
   setPinMessage: any;
   setEditMessage: any;
   editMessage: Message | null;
+  replyMessage: Message | null;
+  setReplyMessage: any;
 }
 
 function ChatArea({
@@ -64,10 +72,11 @@ function ChatArea({
   setRooms,
   setRoom,
   setShownRoomName,
-  pinMessage,
   setPinMessage,
   setEditMessage,
   editMessage,
+  replyMessage,
+  setReplyMessage,
 }: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -93,28 +102,6 @@ function ChatArea({
   const [currentPinnedMessage, setCurrentPinnedMessage] =
     useState<Message | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-
-  // useEffect(() => {
-  //   socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
-  //     if (room === responseRoom) {
-  //       setPinMessage(message);
-  //     }
-  //   });
-
-  //   socket?.on(
-  //     "unpinMessageResponse",
-  //     ({ room: responseRoom, message }: any) => {
-  //       if (room === responseRoom) {
-  //         setPinMessage(null);
-  //       }
-  //     }
-  //   );
-
-  //   return () => {
-  //     socket?.off("pinMessageResponse");
-  //     socket?.off("unpinMessageResponse");
-  //   };
-  // }, [room, socket]);
 
   useEffect(() => {
     socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
@@ -356,6 +343,37 @@ function ChatArea({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const messagesRef = useRef<any>(null);
+
+  const handleScroll = () => {
+    const chatContainer: any = messagesRef.current;
+    if (chatContainer) {
+      const isBottom =
+        Math.abs(
+          chatContainer.scrollHeight -
+            chatContainer.scrollTop -
+            chatContainer.clientHeight
+        ) <= 1;
+
+      setIsAtBottom(isBottom);
+    }
+  };
+
+  useEffect(() => {
+    const chatContainer = messagesRef.current;
+
+    if (chatContainer) {
+      chatContainer.addEventListener("scroll", handleScroll);
+    }
+
+    return () => {
+      if (chatContainer) {
+        chatContainer.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -477,9 +495,9 @@ function ChatArea({
   };
 
   const handleReplyMessage = (message: Message) => {
-    console.log(message);
-    
-  }
+    setReplyMessage(message);
+  };
+
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
       <div
@@ -634,292 +652,405 @@ function ChatArea({
           </List>
         </Box>
       </Modal>
-
-      <div className="messages" style={{ overflowY: "scroll", height: "100%" }}>
-        {currentPinnedMessage && (
-          <div
-            onClick={scrollToPinnedMessage}
-            ref={pinnedMessageDisplayRef}
-            style={{
-              cursor: "pointer",
-              position: "sticky",
-              top: "0",
-              zIndex: 1,
-              backgroundColor: "#f0f0f0",
-              borderRadius: "8px",
-              padding: "3px 10px",
-              marginBottom: "10px",
-              justifyContent: "space-between",
-              alignItems: "center",
-              boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.1)",
-            }}
-            className="pinned-message-display"
-          >
-            <div>
-              <p style={{ margin: "0", fontWeight: "bold" }}>
-                Pinned Message from {currentPinnedMessage?.sender?.username}:
-              </p>
-              <p style={{ margin: "0", fontSize: "0.9rem" }}>
-                {currentPinnedMessage?.content}
-              </p>
-            </div>
-            <button
-              style={{
-                backgroundColor: "transparent",
-                width: "100px",
-                border: "none",
-                color: "#000",
-              }}
-            >
-              <GrFormPin size={30} />
-            </button>
-          </div>
-        )}
-
-        {messages.map((msg: Message) => {
-          return (
+      {room ? (
+        <div
+          className="messages"
+          style={{ overflowY: "scroll", height: "100%" }}
+          ref={messagesRef}
+        >
+          {currentPinnedMessage && (
             <div
-              key={msg._id || msg.tempId}
-              className="message-container"
-              ref={msg.isPinned ? pinnedMessageRef : null} // Reference the pinned message for scrolling
+              onClick={scrollToPinnedMessage}
+              ref={pinnedMessageDisplayRef}
+              style={{
+                cursor: "pointer",
+                position: "sticky",
+                top: "0",
+                zIndex: 1,
+                backgroundColor: "#ffffff",
+                padding: "3px 10px",
+                marginBottom: "10px",
+                justifyContent: "space-between",
+                alignItems: "center",
+                boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.1)",
+              }}
+              className="pinned-message-display"
             >
-              <div
-                className={`message ${
-                  msg?.sender?._id === sender?._id ? "sent" : "received"
-                }`}
-                style={{ minWidth: "200px" }}
+              <div>
+                <p style={{ margin: "0", fontWeight: "bold" }}>
+                  Pinned Message from {currentPinnedMessage?.sender?.username}:
+                </p>
+                <p style={{ margin: "0", fontSize: "0.9rem" }}>
+                  {currentPinnedMessage?.content}
+                </p>
+              </div>
+
+              <button
+                style={{
+                  backgroundColor: "transparent",
+                  width: "100px",
+                  border: "none",
+                  color: "#000",
+                }}
               >
-                <p
-                  style={{
-                    textAlign:
-                      msg?.sender?._id === sender?._id ? "right" : "left",
-                    marginTop: "0px",
-                  }}
+                <GrFormPin size={30} />
+              </button>
+            </div>
+          )}
+
+          {messages.map((msg: Message) => {
+            return (
+              <div
+                key={msg._id || msg.tempId}
+                className="message-container"
+                ref={msg.isPinned ? pinnedMessageRef : null}
+              >
+                <div
+                  className={`message ${
+                    msg?.sender?._id === sender?._id ? "sent" : "received"
+                  }`}
+                  style={{ minWidth: "200px" }}
                 >
-                  {msg?.sender?.username}
-                </p>
-                <p
-                  style={{
-                    textAlign:
-                      msg?.sender?._id === sender?._id ? "right" : "left",
-                    margin: "5px 0 0 0",
-                    fontFamily: "IranYekan",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  {msg?.content}
-                </p>
-                <p
-                  className="timestamp"
-                  style={{
-                    textAlign:
-                      msg?.sender?._id === sender?._id ? "left" : "right",
-                    margin: "5px 0 0 0",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>
-                    {msg.isSending || !msg.timestamp ? (
-                      <CiClock2 size={10} />
-                    ) : msg.timestamp ? (
-                      new Date(msg.timestamp).toLocaleTimeString()
-                    ) : (
-                      "Unknown Time"
-                    )}
-                  </span>
-                  <span
+                  <p
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "2px",
+                      textAlign:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                      marginTop: "0px",
                     }}
                   >
-                    {msg.isPinned && (
-                      <span style={{ marginTop: "2px" }}>
-                        <GrFormPin size={13} />
-                      </span>
-                    )}
-                    {msg.isEdited && <span>edited</span>}
-                  </span>
-                </p>
-                <div className="message-options">
-                  <button
-                    style={{
-                      color: "red",
-                      width: "20px",
-                      position: "absolute",
-                      top: "-5px",
-                      right:
-                        msg?.sender?._id === sender?._id ? "100%" : "-35px",
-                    }}
-                    onClick={() => toggleOptions(msg._id ?? "")}
-                  >
-                    ⋮
-                  </button>
-                  {selectedMessageId === msg._id && (
-                    <div
-                      className="options-dropdown"
+                    {msg?.sender?.username}
+                  </p>
+                  {msg.replyTo && (
+                    <p
+                      className="message-reply"
                       style={{
-                        position: "absolute",
-                        top: "35px",
-                        right:
-                          msg.sender._id === sender?._id ? "100%" : "-35px",
+                        backgroundColor:
+                          msg?.sender?._id === sender?._id
+                            ? "#c5e8fa"
+                            : "#f9ede4",
                       }}
                     >
-                      <button
-                        onClick={() => {
-                          toggleOptions(msg._id ?? "");
-                          handleReplyMessage(msg);
+                      <span
+                        style={{
+                          textAlign:
+                            msg?.sender?._id === sender?._id ? "right" : "left",
                         }}
                       >
-                        Reply
-                      </button>
-                      {!msg.fileUrl && !msg.voiceUrl && (
+                        {msg.replyTo.sender.username}
+                      </span>
+                      <span
+                        style={{
+                          textAlign:
+                            msg?.sender?._id === sender?._id ? "left" : "right",
+                        }}
+                      >
+                        {msg.replyTo.fileUrl
+                          ? "File"
+                          : msg.replyTo.voiceUrl
+                            ? "Voice Message"
+                            : msg.replyTo.content}
+                      </span>
+                    </p>
+                  )}
+                  <p
+                    style={{
+                      textAlign:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                      margin: "5px 0 0 0",
+                      fontFamily: "IranYekan",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {msg?.content}
+                  </p>
+                  <p
+                    className="timestamp"
+                    style={{
+                      textAlign:
+                        msg?.sender?._id === sender?._id ? "left" : "right",
+                      margin: "5px 0 0 0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>
+                      {msg.isSending || !msg.timestamp ? (
+                        <CiClock2 size={10} />
+                      ) : msg.timestamp ? (
+                        new Date(msg.timestamp).toLocaleTimeString()
+                      ) : (
+                        "Unknown Time"
+                      )}
+                    </span>
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                    >
+                      {msg.isPinned && (
+                        <span style={{ marginTop: "2px" }}>
+                          <GrFormPin size={13} />
+                        </span>
+                      )}
+                      {msg.isEdited && <span>edited</span>}
+                    </span>
+                  </p>
+                  <div className="message-options">
+                    <button
+                      style={{
+                        color: "red",
+                        width: "20px",
+                        position: "absolute",
+                        top: "-5px",
+                        right:
+                          msg?.sender?._id === sender?._id ? "100%" : "-35px",
+                      }}
+                      onClick={() => toggleOptions(msg._id ?? "")}
+                    >
+                      ⋮
+                    </button>
+                    {selectedMessageId === msg._id && (
+                      <div
+                        className="options-dropdown"
+                        style={{
+                          position: "absolute",
+                          top: "35px",
+                          right:
+                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                        }}
+                      >
                         <button
                           onClick={() => {
                             toggleOptions(msg._id ?? "");
-                            handleCopyMessage(msg.content);
+                            handleReplyMessage(msg);
+                            setEditMessage(null);
+                            setMessage("");
                           }}
                         >
-                          Copy
+                          Reply
                         </button>
-                      )}
 
-                      <button
-                        onClick={() => {
-                          toggleOptions(msg._id ?? "");
-                          handlePinMessage(msg);
-                        }}
-                      >
-                        {msg.isPinned ? "Unpin" : "Pin"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          toggleOptions(msg._id ?? "");
-                          handleSaveMessage(msg);
-                        }}
-                      >
-                        Save
-                      </button>
-                      {!msg.fileUrl &&
-                        !msg.voiceUrl &&
-                        sender?._id === msg.sender._id && (
+                        {!msg.fileUrl && !msg.voiceUrl && (
                           <button
                             onClick={() => {
                               toggleOptions(msg._id ?? "");
-                              handleEditMessage(msg);
+                              handleCopyMessage(msg.content);
                             }}
                           >
-                            Edit
+                            Copy
                           </button>
                         )}
-                      <button
-                        onClick={() => {
-                          toggleOptions(msg._id ?? "");
-                          handleDeleteMessage(msg._id ?? "");
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {msg.voiceUrl && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent:
-                      msg?.sender?._id === sender?._id ? "right" : "left",
-                  }}
-                >
-                  <audio className="audio-player" controls>
-                    <source
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
-                      type="audio/mp3"
-                    />
-                    Your browser does not support the audio element.
-                  </audio>
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handlePinMessage(msg);
+                          }}
+                        >
+                          {msg.isPinned ? "Unpin" : "Pin"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleSaveMessage(msg);
+                          }}
+                        >
+                          Save
+                        </button>
+                        {!msg.fileUrl &&
+                          !msg.voiceUrl &&
+                          sender?._id === msg.sender._id && (
+                            <button
+                              onClick={() => {
+                                toggleOptions(msg._id ?? "");
+                                handleEditMessage(msg);
+                                setReplyMessage(null);
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleDeleteMessage(msg._id ?? "");
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
 
-              {msg.fileUrl && (
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent:
-                      msg?.sender?._id === sender?._id ? "right" : "left",
-                  }}
-                >
-                  {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
-                    <div>
-                      {/* Thumbnail Image */}
-                      <img
-                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                        alt="Uploaded media"
-                        style={{
-                          maxWidth: "400px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                        }}
-                        onClick={toggleFullScreen} // Trigger full screen on click
+                {msg.voiceUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    <audio className="audio-player" controls>
+                      <source
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.voiceUrl}`}
+                        type="audio/mp3"
                       />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
 
-                      {/* Full Screen Dialog */}
-                      <Dialog
-                        open={isFullScreen}
-                        onClose={toggleFullScreen}
-                        fullScreen
-                      >
+                {msg.fileUrl && (
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent:
+                        msg?.sender?._id === sender?._id ? "right" : "left",
+                    }}
+                  >
+                    {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
+                      <div>
+                        {/* Thumbnail Image */}
                         <img
                           src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                          alt="Uploaded media in full screen"
+                          alt="Uploaded media"
                           style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "contain",
-                            backgroundColor: "black",
+                            maxWidth: "400px",
+                            borderRadius: "8px",
+                            cursor: "pointer",
                           }}
-                          onClick={toggleFullScreen} // Toggle back to normal size on click
+                          onClick={toggleFullScreen} // Trigger full screen on click
                         />
-                      </Dialog>
-                    </div>
-                  ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
-                    <video
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
-                      controls
-                      style={{ maxWidth: "400px", borderRadius: "8px" }}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <p>Unsupported file format</p>
-                  )}
-                </div>
-              )}
+
+                        {/* Full Screen Dialog */}
+                        <Dialog
+                          open={isFullScreen}
+                          onClose={toggleFullScreen}
+                          fullScreen
+                        >
+                          <img
+                            src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                            alt="Uploaded media in full screen"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              backgroundColor: "black",
+                            }}
+                            onClick={toggleFullScreen} // Toggle back to normal size on click
+                          />
+                        </Dialog>
+                      </div>
+                    ) : /\.(mp4|mov|avi|wmv)$/i.test(msg.fileUrl) ? (
+                      <video
+                        src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
+                        controls
+                        style={{ maxWidth: "400px", borderRadius: "8px" }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <p>Unsupported file format</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {room && !isAtBottom && (
+            <div className="down-icon" onClick={scrollToBottom}>
+              <FaChevronDown style={styles.icon} />
             </div>
-          );
-        })}
-        <div ref={chatEndRef} />
-      </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "100%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexDirection:"column"
+          }}
+        >
+          <span><IoIosChatbubbles size={70} color="#999" /></span>
+          <h3 style={{color:"#999"}}>Please Join A Room To Start Chatting !</h3>
+        </div>
+      )}
 
       {editMessage ? (
         <div
           style={{
             display: "flex",
+            justifyContent: "space-between",
             margin: "5px 0",
             columnGap: "10px",
             marginLeft: "5px",
           }}
         >
-          <span>
-            <MdOutlineModeEditOutline style={styles.icon} />
-          </span>
-          <span>Editing You : {editMessage.content}</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span>
+              <MdOutlineModeEditOutline style={styles.icon} />
+            </span>
+            <span>
+              Editing <span style={{ fontWeight: "bold" }}>You</span> :{" "}
+              {editMessage.content}
+            </span>
+          </div>
+          <div
+            onClick={() => setEditMessage(null)}
+            style={{ cursor: "pointer", padding: "3px" }}
+          >
+            <RxCross2 style={styles.icon} />
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
+
+      {replyMessage ? (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            margin: "5px 0",
+            columnGap: "10px",
+            marginLeft: "5px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span>
+              <FaReply style={styles.icon} />
+            </span>
+            <span>
+              Replying To {replyMessage.sender.username}: {replyMessage.content}
+            </span>
+          </div>
+          <div
+            onClick={() => setReplyMessage(null)}
+            style={{ cursor: "pointer", padding: "3px" }}
+          >
+            <RxCross2 style={styles.icon} />
+          </div>
         </div>
       ) : (
         ""
@@ -938,6 +1069,8 @@ function ChatArea({
         publicName={publicName}
         editMessage={editMessage}
         setEditMessage={setEditMessage}
+        replyMessage={replyMessage}
+        setReplyMessage={setReplyMessage}
       />
     </div>
   );

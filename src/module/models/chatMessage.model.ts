@@ -43,8 +43,8 @@ const ChatMessageSchema = new Schema<IChatMessage>({
   isPinned: { type: Boolean, default: false },
   isEdited: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
-  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "ChatMessage" },
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "ChatMessage" },
+  forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   deletedBy: [
     { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
   ],

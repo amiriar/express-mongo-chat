@@ -25,6 +25,7 @@ const Home: React.FC = () => {
   const [shownRoomName, setShownRoomName] = useState<string>("No room joined");
   const [offlineUsers, setOfflineUsers] = useState([]);
   const [editMessage, setEditMessage] = useState<Message | null>(null);
+  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
 
   const navigate = useNavigate();
 
@@ -166,11 +167,6 @@ const Home: React.FC = () => {
     });
   });
 
-  // socket?.on("pinMessageResponse", ({ room, message }: any) => {
-  //   setPinMessage(message);
-  //   console.log(`pinned ${message} on: ${room}`);
-  // });
-
   socket?.on("newRoomResponse", (roomData: Room[]) => {
     const userRooms = roomData.filter((room) =>
       room.participants.some(
@@ -197,7 +193,6 @@ const Home: React.FC = () => {
     };
 
     socket?.on("fileUpload-respond", (messageData: Message) => {
-      console.log(messageData);
       setMessages((prevMessages) => [...prevMessages, messageData]);
     });
 
@@ -330,6 +325,8 @@ const Home: React.FC = () => {
         setPinMessage={setPinMessage}
         editMessage={editMessage}
         setEditMessage={setEditMessage}
+        replyMessage={replyMessage}
+        setReplyMessage={setReplyMessage}
       />
     </div>
   );

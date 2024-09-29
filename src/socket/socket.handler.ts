@@ -91,44 +91,6 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    // socket.on("pinMessage", async ({ room, messageId }: any) => {
-    //   try {
-    //     const result = await ChatMessageModel.findOneAndUpdate(
-    //       { _id: messageId, room },
-    //       { $set: { isPinned: true } },
-    //       { new: true }
-    //     ).populate("sender", "username");
-
-    //     if (result) {
-    //       io.to(room).emit("pinMessageResponse", { room, message: result });
-    //     } else {
-    //       socket.emit("error", { error: "Failed to pin the message" });
-    //     }
-    //   } catch (error) {
-    //     console.error("Error pinning message:", error);
-    //     socket.emit("error", { error: "Failed to pin the message" });
-    //   }
-    // });
-
-    // socket.on("unpinMessage", async ({ room, messageId }: any) => {
-    //   try {
-    //     const result = await ChatMessageModel.findOneAndUpdate(
-    //       { _id: messageId, room },
-    //       { $set: { isPinned: false }, _id: 1, content: 1, sender: 1 },
-    //       { new: true }
-    //     ).populate("sender", "username");
-
-    //     if (result) {
-    //       io.to(room).emit("pinMessageResponse", { room, message: result });
-    //     } else {
-    //       socket.emit("error", { error: "Failed to pin the message" });
-    //     }
-    //   } catch (error) {
-    //     console.error("Error pinning message:", error);
-    //     socket.emit("error", { error: "Failed to pin the message" });
-    //   }
-    // });
-
     socket.on("pinMessage", async ({ room, messageId }: any) => {
       try {
         await ChatMessageModel.updateMany(
@@ -190,7 +152,7 @@ export const handleSocketConnections = (io: Server) => {
         const ids = !roomName._id ? roomName?.split("-") : roomName._id;
         const isPrivateChat =
           ids.length === 2 &&
-          ids.every((id: string) => mongoose.Types.ObjectId.isValid(id));
+          ids.every((id: any) => mongoose.Types.ObjectId.isValid(id));
 
         let history = [];
 
@@ -211,8 +173,8 @@ export const handleSocketConnections = (io: Server) => {
                 recipient: senderObjectId,
               },
             ],
-            isDeleted: false, // Exclude globally deleted messages
-            deletedBy: { $not: { $elemMatch: { $eq: userId } } }, // Exclude messages deleted by this user
+            isDeleted: false,
+            deletedBy: { $not: { $elemMatch: { $eq: userId } } },
           })
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
@@ -220,15 +182,46 @@ export const handleSocketConnections = (io: Server) => {
         } else {
           history = await ChatMessageModel.find({
             room: roomName,
-            isDeleted: false, // Exclude globally deleted messages
-            deletedBy: { $not: { $elemMatch: { $eq: userId } } }, // Exclude messages deleted by this user
+            isDeleted: false,
+            deletedBy: { $not: { $elemMatch: { $eq: userId } } },
           })
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
             .sort({ timestamp: 1 });
         }
 
-        socket.emit("sendHistory", history);
+        const populatedHistory = await Promise.all(
+          history.map(async (message) => {
+            if (message.replyTo) {
+              const replyToMessage = await ChatMessageModel.findById(
+                message.replyTo
+              )
+                .populate("sender", "username profile")
+                .populate("recipient", "username profile");
+
+              return {
+                ...message.toObject(),
+                replyTo: replyToMessage
+                  ? {
+                      _id: replyToMessage._id,
+                      content: replyToMessage.content,
+                      timestamp: replyToMessage.timestamp,
+                      sender: {
+                        _id: replyToMessage.sender._id,
+                        username: replyToMessage.sender.username,
+                        profile: replyToMessage.sender.profile,
+                      },
+                      fileUrl: replyToMessage.fileUrl ? replyToMessage.fileUrl : null,
+                      voiceUrl: replyToMessage.voiceUrl ? replyToMessage.voiceUrl : null,
+                    }
+                  : null,
+              };
+            }
+            return message;
+          })
+        );
+
+        socket.emit("sendHistory", populatedHistory);
       } catch (error) {
         console.error("Error fetching chat history:", error);
         socket.emit("sendHistory", []);
@@ -237,10 +230,9 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("sendMessage", async (messageData) => {
       try {
-        // Remove tempId before saving the message, as Mongoose will generate the _id
         const { tempId, ...rest } = messageData;
 
-        const newMessage = await ChatMessageModel.create(rest); // Mongoose will auto-generate _id
+        const newMessage = await ChatMessageModel.create(rest);
 
         const sender = await UserModel.findById(
           newMessage.sender,
@@ -251,6 +243,13 @@ export const handleSocketConnections = (io: Server) => {
           "username profile"
         );
 
+        const replyToMessage = newMessage.replyTo
+          ? await ChatMessageModel.findById(newMessage.replyTo).populate({
+              path: "sender",
+              select: "username profile",
+            })
+          : null;
+
         const messageToSend = {
           _id: newMessage._id,
           tempId,
@@ -260,6 +259,20 @@ export const handleSocketConnections = (io: Server) => {
           status: newMessage.status,
           isSending: false,
           voiceUrl: newMessage.voiceUrl,
+          replyTo: replyToMessage
+            ? {
+                _id: replyToMessage._id,
+                content: replyToMessage.content,
+                timestamp: replyToMessage.timestamp,
+                sender: {
+                  _id: replyToMessage.sender._id,
+                  username: replyToMessage.sender.username,
+                  profile: replyToMessage.sender.profile,
+                },
+                fileUrl: rest.fileUrl ? rest.fileUrl : null,
+                voiceUrl: rest.voiceUrl ? rest.voiceUrl : null,
+              }
+            : null,
           sender: {
             _id: sender?._id,
             username: sender?.username,
@@ -274,7 +287,6 @@ export const handleSocketConnections = (io: Server) => {
             : null,
         };
 
-        // socket.to(newMessage.room).emit('message', messageToSend);
         io.to(newMessage.room).emit("message", messageToSend);
       } catch (error) {
         console.error("Error sending message:", error);

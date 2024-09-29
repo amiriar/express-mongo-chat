@@ -1,11 +1,10 @@
 import { InputAdornment, TextField } from "@mui/material";
 import { MdOutlineAttachFile, MdOutlineModeEditOutline } from "react-icons/md";
-import { FaMicrophone, FaReply, FaStop } from "react-icons/fa";
+import { FaMicrophone, FaStop } from "react-icons/fa";
 import { IoSend } from "react-icons/io5";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { Message } from "./types/types";
-import { TiTick } from "react-icons/ti";
 
 const ChatInput = ({
   room,
@@ -20,6 +19,8 @@ const ChatInput = ({
   publicName,
   editMessage,
   setEditMessage,
+  setReplyMessage,
+  replyMessage,
 }: any) => {
   const uploadFileHandler = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -75,6 +76,7 @@ const ChatInput = ({
     e.preventDefault();
     if (!message.trim()) return alert("Please write something down.");
 
+
     if (socket && room) {
       const tempId = uuidv4();
       const messageData: Partial<Message> = {
@@ -89,6 +91,10 @@ const ChatInput = ({
         isSending: true,
       };
 
+      if (replyMessage) {
+        messageData.replyTo = replyMessage._id;
+      }
+
       if (recipient) {
         messageData.recipient = {
           _id: recipient._id,
@@ -102,6 +108,7 @@ const ChatInput = ({
 
         socket.emit("editMessage", { messageData });
       } else {
+        setReplyMessage(null);
         socket.emit("sendMessage", messageData);
       }
       setMessage("");
