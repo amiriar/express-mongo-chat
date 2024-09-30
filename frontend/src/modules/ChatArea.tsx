@@ -29,6 +29,7 @@ import Swal from "sweetalert2";
 import { MdOutlineModeEditOutline } from "react-icons/md";
 import { GrFormPin } from "react-icons/gr";
 import { IoIosChatbubbles } from "react-icons/io";
+import ForwardModal from "./ForwardModal";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -102,6 +103,8 @@ function ChatArea({
   const [currentPinnedMessage, setCurrentPinnedMessage] =
     useState<Message | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  const [openForwardModal, setOpenForwardModal] = useState(false);
 
   useEffect(() => {
     socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
@@ -292,6 +295,13 @@ function ChatArea({
     }
   };
 
+  const handleForwardMessage = (message: Message) => {
+    console.log(message);
+    handleOpenForwardModal();
+    // handleOpenForwardModal
+    // handleCloseForwardModal
+  };
+
   const handleSaveMessage = (message: Message) => {
     socket?.emit("saveMessage", { userId: sender?._id, message });
   };
@@ -342,37 +352,6 @@ function ChatArea({
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const messagesRef = useRef<any>(null);
-
-  const handleScroll = () => {
-    const chatContainer: any = messagesRef.current;
-    if (chatContainer) {
-      const isBottom =
-        Math.abs(
-          chatContainer.scrollHeight -
-            chatContainer.scrollTop -
-            chatContainer.clientHeight
-        ) <= 1;
-
-      setIsAtBottom(isBottom);
-    }
-  };
-
-  useEffect(() => {
-    const chatContainer = messagesRef.current;
-
-    if (chatContainer) {
-      chatContainer.addEventListener("scroll", handleScroll);
-    }
-
-    return () => {
-      if (chatContainer) {
-        chatContainer.removeEventListener("scroll", handleScroll);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -496,6 +475,14 @@ function ChatArea({
 
   const handleReplyMessage = (message: Message) => {
     setReplyMessage(message);
+  };
+
+  const handleOpenForwardModal = () => {
+    setOpenForwardModal(true);
+  };
+
+  const handleCloseForwardModal = () => {
+    setOpenForwardModal(false);
   };
 
   return (
@@ -652,11 +639,11 @@ function ChatArea({
           </List>
         </Box>
       </Modal>
+
       {room ? (
         <div
           className="messages"
           style={{ overflowY: "scroll", height: "100%" }}
-          ref={messagesRef}
         >
           {currentPinnedMessage && (
             <div
@@ -859,6 +846,25 @@ function ChatArea({
                         >
                           Save
                         </button>
+
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handlePinMessage(msg);
+                          }}
+                        >
+                          {msg.isPinned ? "Unpin" : "Pin"}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            toggleOptions(msg._id ?? "");
+                            handleForwardMessage(msg);
+                          }}
+                        >
+                          Forward
+                        </button>
+
                         {!msg.fileUrl &&
                           !msg.voiceUrl &&
                           sender?._id === msg.sender._id && (
@@ -884,6 +890,17 @@ function ChatArea({
                     )}
                   </div>
                 </div>
+
+                <ForwardModal
+                  offlineUsers={offlineUsers}
+                  onlineUsers={onlineUsers}
+                  ModalStyle={ModalStyle}
+                  openForwardModal={openForwardModal}
+                  setOpenForwardModal={setOpenForwardModal}
+                  handleOpenForwardModal={handleOpenForwardModal}
+                  handleCloseForwardModal={handleCloseForwardModal}
+                  sender={sender}
+                />
 
                 {msg.voiceUrl && (
                   <div
@@ -963,7 +980,7 @@ function ChatArea({
             );
           })}
 
-          {room && !isAtBottom && (
+          {room && (
             <div className="down-icon" onClick={scrollToBottom}>
               <FaChevronDown style={styles.icon} />
             </div>
@@ -977,11 +994,15 @@ function ChatArea({
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            flexDirection:"column"
+            flexDirection: "column",
           }}
         >
-          <span><IoIosChatbubbles size={70} color="#999" /></span>
-          <h3 style={{color:"#999"}}>Please Join A Room To Start Chatting !</h3>
+          <span>
+            <IoIosChatbubbles size={70} color="#999" />
+          </span>
+          <h3 style={{ color: "#999" }}>
+            Please Join A Room To Start Chatting !
+          </h3>
         </div>
       )}
 

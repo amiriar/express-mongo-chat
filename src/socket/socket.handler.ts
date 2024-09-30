@@ -211,8 +211,12 @@ export const handleSocketConnections = (io: Server) => {
                         username: replyToMessage.sender.username,
                         profile: replyToMessage.sender.profile,
                       },
-                      fileUrl: replyToMessage.fileUrl ? replyToMessage.fileUrl : null,
-                      voiceUrl: replyToMessage.voiceUrl ? replyToMessage.voiceUrl : null,
+                      fileUrl: replyToMessage.fileUrl
+                        ? replyToMessage.fileUrl
+                        : null,
+                      voiceUrl: replyToMessage.voiceUrl
+                        ? replyToMessage.voiceUrl
+                        : null,
                     }
                   : null,
               };
@@ -269,8 +273,10 @@ export const handleSocketConnections = (io: Server) => {
                   username: replyToMessage.sender.username,
                   profile: replyToMessage.sender.profile,
                 },
-                fileUrl: rest.fileUrl ? rest.fileUrl : null,
-                voiceUrl: rest.voiceUrl ? rest.voiceUrl : null,
+                fileUrl: replyToMessage.fileUrl ? replyToMessage.fileUrl : null,
+                voiceUrl: replyToMessage.voiceUrl
+                  ? replyToMessage.voiceUrl
+                  : null,
               }
             : null,
           sender: {
@@ -287,7 +293,28 @@ export const handleSocketConnections = (io: Server) => {
             : null,
         };
 
+        console.log("messageToSend");
+        console.log(messageToSend);
+        console.log("messageToSend");
+
         io.to(newMessage.room).emit("message", messageToSend);
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    });
+
+    socket.on("messageForward", async (messageData) => {
+      try {
+        const { message, roomTo } = messageData;
+
+        if (message.timestamp) delete message.timestamp;
+        message.room = roomTo;
+
+        const forwardedMessage = await ChatMessageModel.create(message);
+
+        io.to(roomTo).emit("forwardMessageResponse", {
+          data: forwardedMessage,
+        });
       } catch (error) {
         console.error("Error sending message:", error);
       }
