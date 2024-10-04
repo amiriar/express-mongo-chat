@@ -146,19 +146,124 @@ export const handleSocketConnections = (io: Server) => {
       socket.emit("editMessageResponse", newMessage);
     });
 
+    // socket.on("getHistory", async (roomName) => {
+    //   try {
+    //     const userId = socket.handshake.query.userId;
+
+    //     const ids = !roomName._id ? roomName?.split("-") : roomName._id;
+
+    //     const isPrivateChat =
+    //       ids.length === 2 &&
+    //       ids.every((id: any) => mongoose.Types.ObjectId.isValid(id));
+
+    //     let history = [];
+
+    //     if (isPrivateChat) {
+    //       const [senderId, recipientId] = ids;
+
+    //       const senderObjectId = new mongoose.Types.ObjectId(senderId);
+    //       const recipientObjectId = new mongoose.Types.ObjectId(recipientId);
+
+    //       history = await ChatMessageModel.find({
+    //         $or: [
+    //           {
+    //             sender: senderObjectId,
+    //             recipient: recipientObjectId,
+    //           },
+    //           {
+    //             sender: recipientObjectId,
+    //             recipient: senderObjectId,
+    //           },
+    //           // { room: roomName },
+    //         ],
+    //         isDeleted: false,
+    //         deletedBy: { $not: { $elemMatch: { $eq: userId } } },
+    //       })
+    //         .populate("sender", "username profile phoneNumber")
+    //         .populate("recipient", "username profile phoneNumber")
+    //         .sort({ timestamp: 1 });
+    //     } else {
+    //       history = await ChatMessageModel.find({
+    //         // room: roomName,
+    //         isDeleted: false,
+    //         deletedBy: { $not: { $elemMatch: { $eq: userId } } },
+    //       })
+    //         .populate("sender", "username profile phoneNumber")
+    //         .populate("recipient", "username profile phoneNumber")
+    //         .sort({ timestamp: 1 });
+    //     }
+
+    //     const populatedHistory = await Promise.all(
+    //       history.map(async (message) => {
+    //         if (message.replyTo) {
+    //           const replyToMessage = await ChatMessageModel.findById(
+    //             message.replyTo
+    //           )
+    //             .populate("sender", "username profile")
+    //             .populate("recipient", "username profile");
+
+    //           return {
+    //             ...message.toObject(),
+    //             replyTo: replyToMessage
+    //               ? {
+    //                   _id: replyToMessage._id,
+    //                   content: replyToMessage.content,
+    //                   timestamp: replyToMessage.timestamp,
+    //                   sender: {
+    //                     _id: replyToMessage.sender._id,
+    //                     username: replyToMessage.sender.username,
+    //                     profile: replyToMessage.sender.profile,
+    //                   },
+    //                   fileUrl: replyToMessage.fileUrl
+    //                     ? replyToMessage.fileUrl
+    //                     : null,
+    //                   voiceUrl: replyToMessage.voiceUrl
+    //                     ? replyToMessage.voiceUrl
+    //                     : null,
+    //                 }
+    //               : null,
+    //           };
+    //         }
+    //         return message;
+    //       })
+    //     );
+
+    //     socket.emit("sendHistory", populatedHistory);
+    //   } catch (error) {
+    //     console.error("Error fetching chat history:", error);
+    //     socket.emit("sendHistory", []);
+    //   }
+    // });
+
     socket.on("getHistory", async (roomName) => {
       try {
         const userId = socket.handshake.query.userId;
+
         const ids = !roomName._id ? roomName?.split("-") : roomName._id;
+
         const isPrivateChat =
           ids.length === 2 &&
-          ids.every((id: any) => mongoose.Types.ObjectId.isValid(id));
+          ids.every((id: string) => mongoose.Types.ObjectId.isValid(id));
 
         let history = [];
 
-        if (isPrivateChat) {
-          const [senderId, recipientId] = ids;
+        const isForwardedMessage = await ChatMessageModel.exists({
+          room: roomName,
+          isForwarded: true,
+        });
 
+        if (isForwardedMessage) {
+          history = await ChatMessageModel.find({
+            room: roomName,
+            isDeleted: false,
+            deletedBy: { $not: { $elemMatch: { $eq: userId } } },
+          })
+            .populate("sender", "username profile phoneNumber")
+            .populate("recipient", "username profile phoneNumber")
+            .sort({ timestamp: 1 });
+        } else if (isPrivateChat) {
+          const [senderId, recipientId] = ids;
+          const isSaveMessage = senderId == recipientId;
           const senderObjectId = new mongoose.Types.ObjectId(senderId);
           const recipientObjectId = new mongoose.Types.ObjectId(recipientId);
 
@@ -172,6 +277,7 @@ export const handleSocketConnections = (io: Server) => {
                 sender: recipientObjectId,
                 recipient: senderObjectId,
               },
+              { room: isSaveMessage && roomName },
             ],
             isDeleted: false,
             deletedBy: { $not: { $elemMatch: { $eq: userId } } },
@@ -303,17 +409,109 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    socket.on("messageForward", async (messageData) => {
+    socket.on("forwardMessage", async (messageData) => {
       try {
-        const { message, roomTo } = messageData;
+        const { message, userTo, senderId } = messageData;
 
-        if (message.timestamp) delete message.timestamp;
-        message.room = roomTo;
+        if (message.replyTo) message.replyTo = message.replyTo._id;
+
+        if (message?.recipient?.username) {
+          delete message.recipient.profile;
+          delete message.recipient.username;
+          delete message.recipient.phoneNumber;
+        }
+
+        if (message.timestamp) delete message.timestamp; // it will be made automaticlly
+
+        delete message._id;
+
+        // const room = userTo ? userTo : senderId + "-" + userTo;
+        const room = `${senderId}-${userTo}`;
+
+        message.room = room;
+
+        message.sender = senderId;
+        message.recipient = userTo;
+
+        message.isForwarded = true;
 
         const forwardedMessage = await ChatMessageModel.create(message);
 
-        io.to(roomTo).emit("forwardMessageResponse", {
-          data: forwardedMessage,
+        io.emit("forwardMessageResponse", forwardedMessage);
+        // io.to(room).emit("forwardMessageResponse", forwardedMessage);
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    });
+
+    // socket.on("forwardMessage", async (messageData) => {
+    //   try {
+    //     const { message, userTo, senderId } = messageData;
+
+    //     const newMessage = {
+    //       ...message,
+    //       room: userTo ? `${senderId}-${userTo}` : message.room,
+    //       recipient: userTo || message.recipient,
+    //       sender: message.sender._id || senderId,
+    //       isForwarded: true,
+    //     };
+
+    //     if (newMessage.replyTo) newMessage.replyTo = newMessage.replyTo._id;
+    //     delete newMessage._id;
+    //     delete newMessage.timestamp;
+
+    //     if (newMessage.sender.username) {
+    //       delete newMessage.sender.username;
+    //       delete newMessage.sender.profile;
+    //       delete newMessage.sender.phoneNumber;
+    //     }
+
+    //     if (newMessage.recipient && newMessage.recipient.username) {
+    //       delete newMessage.recipient.username;
+    //       delete newMessage.recipient.profile;
+    //       delete newMessage.recipient.phoneNumber;
+    //     }
+
+    //     const newRoom = newMessage.room.includes("-")
+    //       ? newMessage.room.split("-").length === 2
+    //         ? newMessage.room.split("-").reverse().join("-")
+    //         : newMessage.room
+    //       : newMessage.room;
+
+    //     newMessage.room = newRoom;
+
+    //     const forwardedMessage = await ChatMessageModel.create(newMessage);
+
+    //     // io.to(newRoom).emit("forwardMessageResponse", forwardedMessage);
+    //     io.to(newRoom).emit("forwardMessageResponse", forwardedMessage);
+    //   } catch (error) {
+    //     console.error("Error forwarding message:", error);
+    //   }
+    // });
+
+    socket.on("saveMessage", async (messageData) => {
+      try {
+        const { recipientId, message } = messageData;
+
+        if (message.sender) {
+          delete message.sender.profile;
+          delete message.sender.username;
+          delete message.sender.phoneNumber;
+        }
+        if (message._id) delete message._id;
+        if (message.timestamp) delete message.timestamp;
+
+        message.recipient = recipientId;
+
+        message.room = recipientId + "-" + recipientId;
+
+        console.log(message);
+        console.log(recipientId + "-" + recipientId);
+
+        const savedMessage = await ChatMessageModel.create(message);
+
+        io.emit("saveMessageResponse", {
+          data: savedMessage,
         });
       } catch (error) {
         console.error("Error sending message:", error);

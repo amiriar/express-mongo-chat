@@ -13,6 +13,7 @@ export interface Message {
   fileUrl?: string;
   isSending: boolean;
   isEdited: boolean;
+  isForwarded: boolean;
   isPinned: boolean;
   replyTo: ReplyTo;
 }

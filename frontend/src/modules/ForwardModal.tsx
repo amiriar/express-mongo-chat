@@ -9,25 +9,30 @@ import {
   Modal,
   Typography,
 } from "@mui/material";
-import { IUser } from "./types/types";
 import { FaPaperPlane } from "react-icons/fa";
+import { IUser, Message, Sender } from "./types/types";
+
+interface IForward {
+  offlineUsers: IUser[];
+  onlineUsers: IUser[];
+  openForwardModal: any;
+  handleCloseForwardModal: any;
+  forwardMessageToUser: any;
+  ModalStyle: any;
+  sender: Sender | null;
+  selectedMessageToForward: Message | null;
+}
 
 export default function ForwardModal({
   offlineUsers,
   onlineUsers,
-  ModalStyle,
-  socket,
   openForwardModal,
-  setOpenForwardModal,
-  handleOpenForwardModal,
   handleCloseForwardModal,
+  forwardMessageToUser,
+  ModalStyle,
   sender,
-}: any) {
-  const forwardMessageToUser = (userId: string) => {
-    console.log(`Message forwarded to: ${sender._id}-${userId}`);
-    socket?.io("forwardMessage", "");
-  };
-
+  selectedMessageToForward,
+}: IForward) {
   return (
     <Modal
       open={openForwardModal}
@@ -39,7 +44,6 @@ export default function ForwardModal({
           Forward Message
         </Typography>
 
-        {/* Online Users Section */}
         <Typography variant="subtitle1" sx={{ mt: 2 }}>
           Online Users
         </Typography>
@@ -62,60 +66,63 @@ export default function ForwardModal({
                 </ListItemAvatar>
                 <ListItemText
                   primary={
-                    user.username === sender.username
-                      ? "Save Messages"
+                    user.username === sender?.username
+                      ? "Saved Messages"
                       : user.username
                   }
                 />
                 <Button
-                  onClick={() => forwardMessageToUser(user._id)} // New forwarding function
-                  sx={{ width: "auto" }}
+                  onClick={() =>
+                    forwardMessageToUser(user, selectedMessageToForward)
+                  }
+                  sx={{ width: "100px" }}
                 >
                   <FaPaperPlane size={20} />
                 </Button>
               </ListItem>
             ))
           ) : (
-            <Typography>
-              No online users available to forward the message.
-            </Typography>
+            <Typography>No online users to forward the message.</Typography>
           )}
         </List>
 
-        {/* Offline Users Section */}
         <Typography variant="subtitle1" sx={{ mt: 2 }}>
           Offline Users
         </Typography>
         <List>
           {offlineUsers.length > 0 ? (
-            offlineUsers.map((user: IUser) => (
+            offlineUsers.map((user: any) => (
               <ListItem
                 key={user._id}
                 sx={{ display: "flex", justifyContent: "space-between" }}
               >
                 <ListItemAvatar>
                   <Avatar
-                    src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
+                    src={
+                      user._id === sender?._id
+                        ? `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg`
+                        : `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
+                    }
                     alt={user.username}
                   />
                 </ListItemAvatar>
                 <ListItemText
                   primary={user.username}
                   // @ts-ignore
-                  secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
+                  secondary={new Date(user?.lastSeen).toLocaleString()}
                 />
                 <Button
-                  onClick={() => forwardMessageToUser(user._id)} // Same forward function for offline users
-                  sx={{ width: "auto" }}
+                  onClick={() =>
+                    forwardMessageToUser(user, selectedMessageToForward)
+                  }
+                  sx={{ width: "100px" }}
                 >
                   <FaPaperPlane size={20} />
                 </Button>
               </ListItem>
             ))
           ) : (
-            <Typography>
-              No offline users available to forward the message.
-            </Typography>
+            <Typography>No offline users to forward the message.</Typography>
           )}
         </List>
       </Box>

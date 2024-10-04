@@ -105,7 +105,9 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     if (room) {
-      setMessage("");
+      const draft = localStorage.getItem("draftMessage");
+      draft ? setMessage(draft) : setMessage("");
+
       const formattedRoom = recipient?._id
         ? `${sender?._id}-${recipient?._id}`
         : publicName;
@@ -204,6 +206,18 @@ const Home: React.FC = () => {
           msg._id === messageData._id ? messageData : msg
         )
       );
+    });
+
+    socket?.on("forwardMessageResponse", (messageData: Message) => {
+      setMessages((prevMessages) => {
+        const messageExists = prevMessages.some(
+          (msg) => msg._id === messageData._id
+        );
+        if (!messageExists) {
+          return [...prevMessages, messageData];
+        }
+        return prevMessages;
+      });
     });
 
     socket?.on("voice-message-response", handleVoiceMessageResponse);

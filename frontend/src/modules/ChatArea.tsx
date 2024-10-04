@@ -1,22 +1,7 @@
 import { CiClock2 } from "react-icons/ci";
-import {
-  FaArrowDown,
-  FaChevronDown,
-  FaReply,
-  FaUserPlus,
-} from "react-icons/fa";
+import { FaChevronDown, FaReply, FaUserPlus } from "react-icons/fa";
 import { Dialog } from "@mui/material";
-import {
-  Modal,
-  Box,
-  Button,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-} from "@mui/material";
+
 import { RxCross2 } from "react-icons/rx";
 import { IUser, Message, Recipient, Room, Sender } from "./types/types";
 import { useEffect, useRef, useState } from "react";
@@ -30,6 +15,8 @@ import { MdOutlineModeEditOutline } from "react-icons/md";
 import { GrFormPin } from "react-icons/gr";
 import { IoIosChatbubbles } from "react-icons/io";
 import ForwardModal from "./ForwardModal";
+import JoinRoomModal from "./JoinRoomModal";
+import { RiShareForwardFill } from "react-icons/ri";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -93,6 +80,9 @@ function ChatArea({
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
   );
+
+  const [selectedMessageToForward, setSelectedMessageToForward] =
+    useState<Message | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -296,14 +286,23 @@ function ChatArea({
   };
 
   const handleForwardMessage = (message: Message) => {
-    console.log(message);
+    setSelectedMessageToForward(message);
     handleOpenForwardModal();
-    // handleOpenForwardModal
-    // handleCloseForwardModal
   };
 
   const handleSaveMessage = (message: Message) => {
-    socket?.emit("saveMessage", { userId: sender?._id, message });
+    Swal.fire({
+      title: "Save Message",
+      text: "Do you want to save this message?",
+      icon: "question",
+      showCancelButton: true,
+      cancelButtonText: "Cancel",
+      confirmButtonText: "Save",
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        socket?.emit("saveMessage", { recipientId: sender?._id, message });
+      }
+    });
   };
 
   const handleEditMessage = (message: Message) => {
@@ -485,6 +484,10 @@ function ChatArea({
     setOpenForwardModal(false);
   };
 
+  const forwardMessageToUser = (userTo: IUser, message: Message) => {
+    socket?.emit("forwardMessage", { message, userTo: userTo._id, senderId: sender?._id });
+  };
+
   return (
     <div className="chat-area" style={{ fontFamily: "Poppins" }}>
       <div
@@ -562,83 +565,6 @@ function ChatArea({
           />
         )}
       </div>
-
-      <Modal
-        open={openModal}
-        onClose={handleCloseModal}
-        aria-labelledby="modal-title"
-      >
-        <Box sx={ModalStyle}>
-          <Typography id="modal-title" variant="h6" component="h2">
-            Add Users to Room
-          </Typography>
-
-          {/* Online Users Section */}
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Online Users
-          </Typography>
-          <List>
-            {nonParticipantOnlineUsers.length > 0 ? (
-              nonParticipantOnlineUsers.map((user: IUser) => (
-                <ListItem
-                  key={user._id}
-                  sx={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <ListItemAvatar>
-                    <Avatar
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                      alt={user.username}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText primary={user.username} />
-                  <Button
-                    onClick={() => addUserToRoom({ userId: user._id, room })} // Use room correctly here
-                    sx={{ width: "auto" }}
-                  >
-                    <FaUserPlus size={20} />
-                  </Button>
-                </ListItem>
-              ))
-            ) : (
-              <Typography>No online users to add.</Typography>
-            )}
-          </List>
-
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Offline Users
-          </Typography>
-          <List>
-            {nonParticipantOfflineUsers.length > 0 ? (
-              nonParticipantOfflineUsers.map((user: IUser) => (
-                <ListItem
-                  key={user._id}
-                  sx={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <ListItemAvatar>
-                    <Avatar
-                      src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`}
-                      alt={user.username}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={user.username}
-                    // @ts-ignore
-                    secondary={`Last seen: ${new Date(user?.lastSeen).toLocaleString()}`}
-                  />
-                  <Button
-                    onClick={() => addUserToRoom({ userId: user._id, room })}
-                    sx={{ width: "auto" }}
-                  >
-                    <FaUserPlus size={20} />
-                  </Button>
-                </ListItem>
-              ))
-            ) : (
-              <Typography>No offline users to add.</Typography>
-            )}
-          </List>
-        </Box>
-      </Modal>
 
       {room ? (
         <div
@@ -747,6 +673,7 @@ function ChatArea({
                       fontFamily: "IranYekan",
                       fontSize: "0.9rem",
                     }}
+                    dir="rtl"
                   >
                     {msg?.content}
                   </p>
@@ -781,8 +708,10 @@ function ChatArea({
                           <GrFormPin size={13} />
                         </span>
                       )}
-                      {msg.isEdited && <span>edited</span>}
+                      {msg.isEdited && <span><MdOutlineModeEditOutline size={13} /></span>}
+                      {msg.isForwarded && <span><RiShareForwardFill size={13} /></span>}
                     </span>
+                    
                   </p>
                   <div className="message-options">
                     <button
@@ -792,7 +721,8 @@ function ChatArea({
                         position: "absolute",
                         top: "-5px",
                         right:
-                          msg?.sender?._id === sender?._id ? "100%" : "-35px",
+                          // msg?.sender?._id === sender?._id ? "100%" : "-35px",
+                          msg?.sender?._id === sender?._id ? "85%" : "0",
                       }}
                       onClick={() => toggleOptions(msg._id ?? "")}
                     >
@@ -803,9 +733,10 @@ function ChatArea({
                         className="options-dropdown"
                         style={{
                           position: "absolute",
-                          top: "35px",
+                          // top: "35px",
+                          top: "15px",
                           right:
-                            msg.sender._id === sender?._id ? "100%" : "-35px",
+                            msg.sender._id === sender?._id ? "100%" : "-83px",
                         }}
                       >
                         <button
@@ -838,6 +769,7 @@ function ChatArea({
                         >
                           {msg.isPinned ? "Unpin" : "Pin"}
                         </button>
+
                         <button
                           onClick={() => {
                             toggleOptions(msg._id ?? "");
@@ -845,15 +777,6 @@ function ChatArea({
                           }}
                         >
                           Save
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            toggleOptions(msg._id ?? "");
-                            handlePinMessage(msg);
-                          }}
-                        >
-                          {msg.isPinned ? "Unpin" : "Pin"}
                         </button>
 
                         <button
@@ -891,17 +814,6 @@ function ChatArea({
                   </div>
                 </div>
 
-                <ForwardModal
-                  offlineUsers={offlineUsers}
-                  onlineUsers={onlineUsers}
-                  ModalStyle={ModalStyle}
-                  openForwardModal={openForwardModal}
-                  setOpenForwardModal={setOpenForwardModal}
-                  handleOpenForwardModal={handleOpenForwardModal}
-                  handleCloseForwardModal={handleCloseForwardModal}
-                  sender={sender}
-                />
-
                 {msg.voiceUrl && (
                   <div
                     style={{
@@ -932,7 +844,6 @@ function ChatArea({
                   >
                     {/\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl) ? (
                       <div>
-                        {/* Thumbnail Image */}
                         <img
                           src={`${import.meta.env.VITE_BACKEND_BASE_URL}/${msg.fileUrl}`}
                           alt="Uploaded media"
@@ -944,7 +855,6 @@ function ChatArea({
                           onClick={toggleFullScreen} // Trigger full screen on click
                         />
 
-                        {/* Full Screen Dialog */}
                         <Dialog
                           open={isFullScreen}
                           onClose={toggleFullScreen}
@@ -959,7 +869,7 @@ function ChatArea({
                               objectFit: "contain",
                               backgroundColor: "black",
                             }}
-                            onClick={toggleFullScreen} // Toggle back to normal size on click
+                            onClick={toggleFullScreen}
                           />
                         </Dialog>
                       </div>
@@ -1092,6 +1002,27 @@ function ChatArea({
         setEditMessage={setEditMessage}
         replyMessage={replyMessage}
         setReplyMessage={setReplyMessage}
+      />
+
+      <ForwardModal
+        offlineUsers={offlineUsers}
+        onlineUsers={onlineUsers}
+        ModalStyle={ModalStyle}
+        openForwardModal={openForwardModal}
+        forwardMessageToUser={forwardMessageToUser}
+        handleCloseForwardModal={handleCloseForwardModal}
+        sender={sender}
+        selectedMessageToForward={selectedMessageToForward}
+      />
+
+      <JoinRoomModal
+        nonParticipantOnlineUsers={nonParticipantOnlineUsers}
+        openModal={openModal}
+        handleCloseModal={handleCloseModal}
+        nonParticipantOfflineUsers={nonParticipantOfflineUsers}
+        addUserToRoom={addUserToRoom}
+        room={room}
+        ModalStyle={ModalStyle}
       />
     </div>
   );

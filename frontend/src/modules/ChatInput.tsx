@@ -76,7 +76,6 @@ const ChatInput = ({
     e.preventDefault();
     if (!message.trim()) return alert("Please write something down.");
 
-
     if (socket && room) {
       const tempId = uuidv4();
       const messageData: Partial<Message> = {
@@ -125,6 +124,7 @@ const ChatInput = ({
     >
       <TextField
         value={room ? message : ""}
+        sx={{ fontFamily: "IranYekan" }}
         onChange={(e) => setMessage(e.target.value)}
         placeholder={
           room ? "Type your message..." : "Join a room to send a message!"
@@ -138,7 +138,7 @@ const ChatInput = ({
               <input
                 type="file"
                 accept="image/*,video/*"
-                style={{ display: "none" }}
+                style={{ display: "none", fontFamily: "IranYekan" }}
                 id="file-upload"
                 onChange={uploadFileHandler}
               />

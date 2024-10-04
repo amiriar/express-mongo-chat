@@ -20,6 +20,7 @@ export interface IChatMessage extends Document {
   isEdited: boolean;
   isPinned: boolean;
   isDeleted: boolean;
+  isForwarded: boolean;
   isDeletedForMe: boolean;
   replyTo: ObjectId | string;
   forwardedFrom?: ObjectId | string;
@@ -43,6 +44,7 @@ const ChatMessageSchema = new Schema<IChatMessage>({
   isPinned: { type: Boolean, default: false },
   isEdited: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
+  isForwarded: { type: Boolean, default: false },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "ChatMessage" },
   forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   deletedBy: [
