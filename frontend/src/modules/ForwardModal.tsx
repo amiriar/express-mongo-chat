@@ -10,8 +10,8 @@ import {
   Typography,
 } from "@mui/material";
 import { FaPaperPlane } from "react-icons/fa";
-import { IUser, Message, Sender } from "./types/types";
-
+import { IUser, Message, Room, Sender } from "./types/types";
+import { FaUserGroup } from "react-icons/fa6";
 interface IForward {
   offlineUsers: IUser[];
   onlineUsers: IUser[];
@@ -21,6 +21,8 @@ interface IForward {
   ModalStyle: any;
   sender: Sender | null;
   selectedMessageToForward: Message | null;
+  forwardMessageToRoom: any;
+  userRooms: Room[];
 }
 
 export default function ForwardModal({
@@ -32,6 +34,8 @@ export default function ForwardModal({
   ModalStyle,
   sender,
   selectedMessageToForward,
+  userRooms,
+  forwardMessageToRoom,
 }: IForward) {
   return (
     <Modal
@@ -43,6 +47,45 @@ export default function ForwardModal({
         <Typography id="forward-modal-title" variant="h6" component="h2">
           Forward Message
         </Typography>
+
+        <Typography variant="subtitle1" sx={{ mt: 2 }}>
+          Rooms
+        </Typography>
+        <List>
+          {userRooms.length > 0 ? (
+            userRooms.map((room: Room) => (
+              <ListItem
+                key={room._id}
+                sx={{ display: "flex", justifyContent: "space-between", alignItems:"center" }}
+              >
+                {/* <ListItemAvatar>
+                  <Avatar
+                    src={
+                      user._id === sender?._id
+                        ? `${import.meta.env.VITE_BACKEND_BASE_URL}/public/static/savedMessages/saved-messages.jpg`
+                        : `${import.meta.env.VITE_BACKEND_BASE_URL}/${user.profile}`
+                    }
+                    alt={user.username}
+                  />
+                </ListItemAvatar> */}
+                <ListItemAvatar>
+                  <FaUserGroup size={15} style={{background:"#65aee9", padding:"10px", borderRadius:"50%" }} />
+                </ListItemAvatar>
+                <ListItemText primary={room.roomName} />
+                <Button
+                  onClick={() =>
+                    forwardMessageToRoom(room, selectedMessageToForward)
+                  }
+                  sx={{ width: "100px" }}
+                >
+                  <FaPaperPlane size={20} />
+                </Button>
+              </ListItem>
+            ))
+          ) : (
+            <Typography>No online users to forward the message.</Typography>
+          )}
+        </List>
 
         <Typography variant="subtitle1" sx={{ mt: 2 }}>
           Online Users

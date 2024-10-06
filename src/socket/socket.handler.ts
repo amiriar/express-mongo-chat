@@ -91,6 +91,33 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
+    socket.on("editRoom", async (data) => {
+      try {
+        const { room, ...updatedRoom } = data;
+
+        const newRoom = await RoomModel.findByIdAndUpdate(
+          room._id,
+          {
+            name: updatedRoom.roomName,
+            bio: updatedRoom.bio ? updatedRoom.bio : null,
+          },
+          { new: true }
+        );
+
+        console.log(newRoom);
+        
+
+        if (!newRoom) {
+          return socket.emit("roomEditError", { message: "Room not found" });
+        }
+
+        io.to(room._id).emit("editRoomResponse", newRoom);
+      } catch (error) {
+        console.error("Error editing room:", error);
+        socket.emit("roomEditError", { message: "Failed to edit the room" });
+      }
+    });
+
     socket.on("pinMessage", async ({ room, messageId }: any) => {
       try {
         await ChatMessageModel.updateMany(
@@ -145,95 +172,6 @@ export const handleSocketConnections = (io: Server) => {
 
       socket.emit("editMessageResponse", newMessage);
     });
-
-    // socket.on("getHistory", async (roomName) => {
-    //   try {
-    //     const userId = socket.handshake.query.userId;
-
-    //     const ids = !roomName._id ? roomName?.split("-") : roomName._id;
-
-    //     const isPrivateChat =
-    //       ids.length === 2 &&
-    //       ids.every((id: any) => mongoose.Types.ObjectId.isValid(id));
-
-    //     let history = [];
-
-    //     if (isPrivateChat) {
-    //       const [senderId, recipientId] = ids;
-
-    //       const senderObjectId = new mongoose.Types.ObjectId(senderId);
-    //       const recipientObjectId = new mongoose.Types.ObjectId(recipientId);
-
-    //       history = await ChatMessageModel.find({
-    //         $or: [
-    //           {
-    //             sender: senderObjectId,
-    //             recipient: recipientObjectId,
-    //           },
-    //           {
-    //             sender: recipientObjectId,
-    //             recipient: senderObjectId,
-    //           },
-    //           // { room: roomName },
-    //         ],
-    //         isDeleted: false,
-    //         deletedBy: { $not: { $elemMatch: { $eq: userId } } },
-    //       })
-    //         .populate("sender", "username profile phoneNumber")
-    //         .populate("recipient", "username profile phoneNumber")
-    //         .sort({ timestamp: 1 });
-    //     } else {
-    //       history = await ChatMessageModel.find({
-    //         // room: roomName,
-    //         isDeleted: false,
-    //         deletedBy: { $not: { $elemMatch: { $eq: userId } } },
-    //       })
-    //         .populate("sender", "username profile phoneNumber")
-    //         .populate("recipient", "username profile phoneNumber")
-    //         .sort({ timestamp: 1 });
-    //     }
-
-    //     const populatedHistory = await Promise.all(
-    //       history.map(async (message) => {
-    //         if (message.replyTo) {
-    //           const replyToMessage = await ChatMessageModel.findById(
-    //             message.replyTo
-    //           )
-    //             .populate("sender", "username profile")
-    //             .populate("recipient", "username profile");
-
-    //           return {
-    //             ...message.toObject(),
-    //             replyTo: replyToMessage
-    //               ? {
-    //                   _id: replyToMessage._id,
-    //                   content: replyToMessage.content,
-    //                   timestamp: replyToMessage.timestamp,
-    //                   sender: {
-    //                     _id: replyToMessage.sender._id,
-    //                     username: replyToMessage.sender.username,
-    //                     profile: replyToMessage.sender.profile,
-    //                   },
-    //                   fileUrl: replyToMessage.fileUrl
-    //                     ? replyToMessage.fileUrl
-    //                     : null,
-    //                   voiceUrl: replyToMessage.voiceUrl
-    //                     ? replyToMessage.voiceUrl
-    //                     : null,
-    //                 }
-    //               : null,
-    //           };
-    //         }
-    //         return message;
-    //       })
-    //     );
-
-    //     socket.emit("sendHistory", populatedHistory);
-    //   } catch (error) {
-    //     console.error("Error fetching chat history:", error);
-    //     socket.emit("sendHistory", []);
-    //   }
-    // });
 
     socket.on("getHistory", async (roomName) => {
       try {
@@ -399,10 +337,6 @@ export const handleSocketConnections = (io: Server) => {
             : null,
         };
 
-        console.log("messageToSend");
-        console.log(messageToSend);
-        console.log("messageToSend");
-
         io.to(newMessage.room).emit("message", messageToSend);
       } catch (error) {
         console.error("Error sending message:", error);
@@ -444,51 +378,6 @@ export const handleSocketConnections = (io: Server) => {
       }
     });
 
-    // socket.on("forwardMessage", async (messageData) => {
-    //   try {
-    //     const { message, userTo, senderId } = messageData;
-
-    //     const newMessage = {
-    //       ...message,
-    //       room: userTo ? `${senderId}-${userTo}` : message.room,
-    //       recipient: userTo || message.recipient,
-    //       sender: message.sender._id || senderId,
-    //       isForwarded: true,
-    //     };
-
-    //     if (newMessage.replyTo) newMessage.replyTo = newMessage.replyTo._id;
-    //     delete newMessage._id;
-    //     delete newMessage.timestamp;
-
-    //     if (newMessage.sender.username) {
-    //       delete newMessage.sender.username;
-    //       delete newMessage.sender.profile;
-    //       delete newMessage.sender.phoneNumber;
-    //     }
-
-    //     if (newMessage.recipient && newMessage.recipient.username) {
-    //       delete newMessage.recipient.username;
-    //       delete newMessage.recipient.profile;
-    //       delete newMessage.recipient.phoneNumber;
-    //     }
-
-    //     const newRoom = newMessage.room.includes("-")
-    //       ? newMessage.room.split("-").length === 2
-    //         ? newMessage.room.split("-").reverse().join("-")
-    //         : newMessage.room
-    //       : newMessage.room;
-
-    //     newMessage.room = newRoom;
-
-    //     const forwardedMessage = await ChatMessageModel.create(newMessage);
-
-    //     // io.to(newRoom).emit("forwardMessageResponse", forwardedMessage);
-    //     io.to(newRoom).emit("forwardMessageResponse", forwardedMessage);
-    //   } catch (error) {
-    //     console.error("Error forwarding message:", error);
-    //   }
-    // });
-
     socket.on("saveMessage", async (messageData) => {
       try {
         const { recipientId, message } = messageData;
@@ -504,9 +393,6 @@ export const handleSocketConnections = (io: Server) => {
         message.recipient = recipientId;
 
         message.room = recipientId + "-" + recipientId;
-
-        console.log(message);
-        console.log(recipientId + "-" + recipientId);
 
         const savedMessage = await ChatMessageModel.create(message);
 
@@ -739,10 +625,6 @@ export const handleSocketConnections = (io: Server) => {
     socket.on("fileUpload", async (data: any) => {
       try {
         const { fileUrl, sender, room, recipient } = data;
-
-        console.log("data");
-        console.log(data);
-        console.log("data");
 
         if (!sender || !room || !recipient || !fileUrl) {
           throw new Error("Missing data");

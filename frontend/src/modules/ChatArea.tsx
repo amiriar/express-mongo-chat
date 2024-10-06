@@ -17,6 +17,7 @@ import { IoIosChatbubbles } from "react-icons/io";
 import ForwardModal from "./ForwardModal";
 import JoinRoomModal from "./JoinRoomModal";
 import { RiShareForwardFill } from "react-icons/ri";
+import EditRoomModal from "./EditRoomModal";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -42,6 +43,7 @@ interface ChatAreaProps {
   editMessage: Message | null;
   replyMessage: Message | null;
   setReplyMessage: any;
+  rooms: Room[];
 }
 
 function ChatArea({
@@ -65,6 +67,7 @@ function ChatArea({
   editMessage,
   replyMessage,
   setReplyMessage,
+  rooms,
 }: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -419,6 +422,19 @@ function ChatArea({
     }
   };
 
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+
+  const handleEditRoom = (updatedRoom: { roomName: string; bio: string }) => {
+    socket?.emit("editRoom", { room: room, ...updatedRoom });
+  };
+
+  const editRoomHandler = (shownRoomName: Room, senderId: string) => {
+    // open the edit modal
+    setEditModalOpen(true);
+
+    socket?.emit("editRoom", { room: shownRoomName, senderId });
+  };
+
   socket?.on("leftRoom", (rooms: Room) => {
     setRooms(rooms);
   });
@@ -485,7 +501,26 @@ function ChatArea({
   };
 
   const forwardMessageToUser = (userTo: IUser, message: Message) => {
-    socket?.emit("forwardMessage", { message, userTo: userTo._id, senderId: sender?._id });
+    socket?.emit("forwardMessage", {
+      message,
+      userTo: userTo._id,
+      senderId: sender?._id,
+    });
+    handleCloseForwardModal();
+    Swal.fire({
+      title: "Messgae Sent",
+      text: "Message Sent Successfully!",
+      icon: "success",
+      confirmButtonText: "Done",
+    });
+  };
+
+  const forwardMessageToRoom = (room: Room, message: Message) => {
+    socket?.emit("forwardMessageToRoom", {
+      message,
+      room: room._id,
+      senderId: sender?._id,
+    });
   };
 
   return (
@@ -544,6 +579,11 @@ function ChatArea({
               gap: "25px",
             }}
           >
+            <div
+              onClick={() => editRoomHandler(shownRoomName, sender?._id ?? "")}
+            >
+              <MdOutlineModeEditOutline size={27} />
+            </div>
             <div onClick={() => showModalHandler(shownRoomName)}>
               <FaUserPlus size={25} />
             </div>
@@ -708,10 +748,17 @@ function ChatArea({
                           <GrFormPin size={13} />
                         </span>
                       )}
-                      {msg.isEdited && <span><MdOutlineModeEditOutline size={13} /></span>}
-                      {msg.isForwarded && <span><RiShareForwardFill size={13} /></span>}
+                      {msg.isEdited && (
+                        <span>
+                          <MdOutlineModeEditOutline size={13} />
+                        </span>
+                      )}
+                      {msg.isForwarded && (
+                        <span>
+                          <RiShareForwardFill size={13} />
+                        </span>
+                      )}
                     </span>
-                    
                   </p>
                   <div className="message-options">
                     <button
@@ -790,6 +837,7 @@ function ChatArea({
 
                         {!msg.fileUrl &&
                           !msg.voiceUrl &&
+                          !msg.isForwarded &&
                           sender?._id === msg.sender._id && (
                             <button
                               onClick={() => {
@@ -1010,9 +1058,11 @@ function ChatArea({
         ModalStyle={ModalStyle}
         openForwardModal={openForwardModal}
         forwardMessageToUser={forwardMessageToUser}
+        forwardMessageToRoom={forwardMessageToRoom}
         handleCloseForwardModal={handleCloseForwardModal}
         sender={sender}
         selectedMessageToForward={selectedMessageToForward}
+        userRooms={rooms}
       />
 
       <JoinRoomModal
@@ -1023,6 +1073,14 @@ function ChatArea({
         addUserToRoom={addUserToRoom}
         room={room}
         ModalStyle={ModalStyle}
+      />
+
+      <EditRoomModal
+        open={isEditModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        // @ts-ignore
+        room={room}
+        onSave={handleEditRoom}
       />
     </div>
   );

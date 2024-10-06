@@ -213,7 +213,7 @@ const Home: React.FC = () => {
         const messageExists = prevMessages.some(
           (msg) => msg._id === messageData._id
         );
-        if (!messageExists) {
+        if (messageExists) {
           return [...prevMessages, messageData];
         }
         return prevMessages;
@@ -222,9 +222,20 @@ const Home: React.FC = () => {
 
     socket?.on("voice-message-response", handleVoiceMessageResponse);
 
+    socket?.on("editRoomResponse", (updatedRoom: Room) => {
+      setRooms((prevRooms) =>
+        prevRooms.map((proom) =>
+          proom._id === updatedRoom._id ? updatedRoom : proom
+        )
+      );
+    });
+
     return () => {
       socket?.off("voice-message-response", handleVoiceMessageResponse);
       socket?.off("fileUpload-respond");
+      socket?.off("forwardMessageResponse");
+      socket?.off("editMessageResponse");
+      socket?.off("editRoomResponse");
     };
   }, [socket]);
 
@@ -341,6 +352,7 @@ const Home: React.FC = () => {
         setEditMessage={setEditMessage}
         replyMessage={replyMessage}
         setReplyMessage={setReplyMessage}
+        rooms={rooms}
       />
     </div>
   );

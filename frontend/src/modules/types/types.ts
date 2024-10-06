@@ -44,6 +44,7 @@ export interface Recipient {
 export interface Room {
   _id: string;
   roomName: string;
+  bio: string;
   participants: mongoose.Types.ObjectId[];
   isGroup: boolean;
   createdAt: Date;
