@@ -17,12 +17,11 @@ interface IForward {
   onlineUsers: IUser[];
   openForwardModal: any;
   handleCloseForwardModal: any;
-  forwardMessageToUser: any;
   ModalStyle: any;
   sender: Sender | null;
   selectedMessageToForward: Message | null;
-  forwardMessageToRoom: any;
   userRooms: Room[];
+  forwardMessage: any;
 }
 
 export default function ForwardModal({
@@ -30,12 +29,11 @@ export default function ForwardModal({
   onlineUsers,
   openForwardModal,
   handleCloseForwardModal,
-  forwardMessageToUser,
   ModalStyle,
   sender,
   selectedMessageToForward,
   userRooms,
-  forwardMessageToRoom,
+  forwardMessage,
 }: IForward) {
   return (
     <Modal
@@ -56,7 +54,11 @@ export default function ForwardModal({
             userRooms.map((room: Room) => (
               <ListItem
                 key={room._id}
-                sx={{ display: "flex", justifyContent: "space-between", alignItems:"center" }}
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
               >
                 {/* <ListItemAvatar>
                   <Avatar
@@ -69,13 +71,18 @@ export default function ForwardModal({
                   />
                 </ListItemAvatar> */}
                 <ListItemAvatar>
-                  <FaUserGroup size={15} style={{background:"#65aee9", padding:"10px", borderRadius:"50%" }} />
+                  <FaUserGroup
+                    size={15}
+                    style={{
+                      background: "#65aee9",
+                      padding: "10px",
+                      borderRadius: "50%",
+                    }}
+                  />
                 </ListItemAvatar>
                 <ListItemText primary={room.roomName} />
                 <Button
-                  onClick={() =>
-                    forwardMessageToRoom(room, selectedMessageToForward)
-                  }
+                  onClick={() => forwardMessage(room, selectedMessageToForward, null)}
                   sx={{ width: "100px" }}
                 >
                   <FaPaperPlane size={20} />
@@ -115,9 +122,7 @@ export default function ForwardModal({
                   }
                 />
                 <Button
-                  onClick={() =>
-                    forwardMessageToUser(user, selectedMessageToForward)
-                  }
+                  onClick={() => forwardMessage(user, selectedMessageToForward, user._id)}
                   sx={{ width: "100px" }}
                 >
                   <FaPaperPlane size={20} />
@@ -134,7 +139,7 @@ export default function ForwardModal({
         </Typography>
         <List>
           {offlineUsers.length > 0 ? (
-            offlineUsers.map((user: any) => (
+            offlineUsers.map((user: IUser) => (
               <ListItem
                 key={user._id}
                 sx={{ display: "flex", justifyContent: "space-between" }}
@@ -156,7 +161,7 @@ export default function ForwardModal({
                 />
                 <Button
                   onClick={() =>
-                    forwardMessageToUser(user, selectedMessageToForward)
+                    forwardMessage(user, selectedMessageToForward, user._id)
                   }
                   sx={{ width: "100px" }}
                 >

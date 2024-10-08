@@ -25,7 +25,7 @@ const EditRoomModal: React.FC<EditRoomModalProps> = ({
 }) => {
   const [roomName, setRoomName] = useState<string>(room?.roomName || "");
   const [bio, setBio] = useState<string>(room?.bio || "");
-  console.log(roomName);
+
   const handleSave = () => {
     onSave({ roomName, bio });
     onClose();

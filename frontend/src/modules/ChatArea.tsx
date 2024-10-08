@@ -18,6 +18,7 @@ import ForwardModal from "./ForwardModal";
 import JoinRoomModal from "./JoinRoomModal";
 import { RiShareForwardFill } from "react-icons/ri";
 import EditRoomModal from "./EditRoomModal";
+import MessageStatus from "./MessageStatus";
 
 interface ChatAreaProps {
   offlineUsers: IUser[];
@@ -44,6 +45,7 @@ interface ChatAreaProps {
   replyMessage: Message | null;
   setReplyMessage: any;
   rooms: Room[];
+  chatEndRef: any;
 }
 
 function ChatArea({
@@ -68,6 +70,7 @@ function ChatArea({
   replyMessage,
   setReplyMessage,
   rooms,
+  chatEndRef,
 }: ChatAreaProps) {
   const [openModal, setOpenModal] = useState(false);
 
@@ -95,9 +98,44 @@ function ChatArea({
   const pinnedMessageDisplayRef = useRef<HTMLDivElement | null>(null);
   const [currentPinnedMessage, setCurrentPinnedMessage] =
     useState<Message | null>(null);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const [openForwardModal, setOpenForwardModal] = useState(false);
+
+  const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    if (lastMessageRef.current) {
+      observer.current = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const messageId = entry.target.getAttribute("data-message-id");
+            // Update the message status to 'seen' when this message is in view
+            if (messageId) {
+              updateMessageStatus(messageId, "seen");
+            }
+          }
+        });
+      });
+
+      if (lastMessageRef.current) {
+        observer.current.observe(lastMessageRef.current);
+      }
+    }
+
+    // Clean up observer on component unmount
+    return () => {
+      if (observer.current && lastMessageRef.current) {
+        observer.current.unobserve(lastMessageRef.current);
+      }
+    };
+  }, [messages]);
+
+  const updateMessageStatus = (messageId: string, status: string) => {
+    // Send an API request to mark the message as 'seen'
+    // Example API call or socket emission
+    socket?.emit("updateMessageStatus", { messageId, status });
+  };
 
   useEffect(() => {
     socket?.on("pinMessageResponse", ({ room: responseRoom, message }: any) => {
@@ -428,11 +466,8 @@ function ChatArea({
     socket?.emit("editRoom", { room: room, ...updatedRoom });
   };
 
-  const editRoomHandler = (shownRoomName: Room, senderId: string) => {
-    // open the edit modal
+  const editRoomHandler = () => {
     setEditModalOpen(true);
-
-    socket?.emit("editRoom", { room: shownRoomName, senderId });
   };
 
   socket?.on("leftRoom", (rooms: Room) => {
@@ -500,11 +535,16 @@ function ChatArea({
     setOpenForwardModal(false);
   };
 
-  const forwardMessageToUser = (userTo: IUser, message: Message) => {
+  const forwardMessage = (
+    room: IUser,
+    message: Message,
+    recipientId?: string
+  ) => {
     socket?.emit("forwardMessage", {
       message,
-      userTo: userTo._id,
+      room: room._id,
       senderId: sender?._id,
+      recipientId: recipientId ? recipientId : null,
     });
     handleCloseForwardModal();
     Swal.fire({
@@ -512,14 +552,6 @@ function ChatArea({
       text: "Message Sent Successfully!",
       icon: "success",
       confirmButtonText: "Done",
-    });
-  };
-
-  const forwardMessageToRoom = (room: Room, message: Message) => {
-    socket?.emit("forwardMessageToRoom", {
-      message,
-      room: room._id,
-      senderId: sender?._id,
     });
   };
 
@@ -579,9 +611,7 @@ function ChatArea({
               gap: "25px",
             }}
           >
-            <div
-              onClick={() => editRoomHandler(shownRoomName, sender?._id ?? "")}
-            >
+            <div onClick={() => editRoomHandler()}>
               <MdOutlineModeEditOutline size={27} />
             </div>
             <div onClick={() => showModalHandler(shownRoomName)}>
@@ -758,6 +788,9 @@ function ChatArea({
                           <RiShareForwardFill size={13} />
                         </span>
                       )}
+                      <span>
+                        <MessageStatus status={msg.status} />
+                      </span>
                     </span>
                   </p>
                   <div className="message-options">
@@ -1057,8 +1090,7 @@ function ChatArea({
         onlineUsers={onlineUsers}
         ModalStyle={ModalStyle}
         openForwardModal={openForwardModal}
-        forwardMessageToUser={forwardMessageToUser}
-        forwardMessageToRoom={forwardMessageToRoom}
+        forwardMessage={forwardMessage}
         handleCloseForwardModal={handleCloseForwardModal}
         sender={sender}
         selectedMessageToForward={selectedMessageToForward}

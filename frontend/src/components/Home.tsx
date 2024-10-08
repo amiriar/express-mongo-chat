@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import "./Home.css";
@@ -26,6 +26,7 @@ const Home: React.FC = () => {
   const [offlineUsers, setOfflineUsers] = useState([]);
   const [editMessage, setEditMessage] = useState<Message | null>(null);
   const [replyMessage, setReplyMessage] = useState<Message | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const navigate = useNavigate();
 
@@ -103,21 +104,98 @@ const Home: React.FC = () => {
     navigate("/settings");
   };
 
+  // useEffect(() => {
+  //   if (room) {
+  //     const draft = localStorage.getItem("draftMessage");
+  //     draft ? setMessage(draft) : setMessage("");
+
+  //     const formattedRoom = recipient?._id
+  //       ? `${sender?._id}-${recipient?._id}`
+  //       : publicName;
+
+  //     socket?.emit("getHistory", formattedRoom);
+
+  //     socket?.on("sendHistory", (messageData: Message[]) => {
+  //       setMessages(messageData as Message[]);
+  //     });
+
+  //     socket?.on(
+  //       "deleteMessageResponse",
+  //       ({ success, messageId, error, deletedBy, deletedByEveryone }: any) => {
+  //         if (success) {
+  //           setMessages((prevMessages) =>
+  //             prevMessages.filter((msg) => {
+  //               const isCurrentMessage = msg._id === messageId;
+  //               const isDeletedForEveryone = deletedByEveryone;
+  //               const isDeletedForSender =
+  //                 deletedBy && deletedBy.includes(sender?._id);
+
+  //               if (isDeletedForEveryone && isCurrentMessage) {
+  //                 return false;
+  //               }
+
+  //               return !isCurrentMessage || !isDeletedForSender;
+  //             })
+  //           );
+  //         } else {
+  //           console.error("Failed to delete message:", error);
+  //         }
+  //       }
+  //     );
+
+  //     if (chatEndRef.current) {
+  //       const observer = new IntersectionObserver((entries) => {
+  //         const isAtBottom = entries[0].isIntersecting;
+
+  //         if (isAtBottom && messages.length > 0) {
+  //           // Emit the 'seen' event for all messages that are not 'seen'
+  //           const unseenMessages = messages.filter(
+  //             (message) => message.status !== 'seen'
+  //           );
+
+  //           if (unseenMessages.length > 0) {
+  //             socket?.emit("markMessagesAsSeen", {
+  //               messages: unseenMessages.map((msg) => msg._id),
+  //               room,
+  //               userId: sender?._id, // Current user marking messages as seen
+  //             });
+  //           }
+  //         }
+  //       }, { threshold: 1.0 }); // Adjust threshold based on when the element is considered in view
+
+  //       if (chatEndRef.current) {
+  //         observer.unobserve(chatEndRef.current);
+  //       }
+  //     }
+
+  //     return () => {
+  //       socket?.off("deleteMessageResponse");
+  //       socket?.off("sendHistory");
+  //       // socket?.off("voice-message-response");
+  //       socket?.off("newRoomResponse");
+  //       socket?.off("message");
+  //       if (chatEndRef.current) {
+  //         observer.unobserve(chatEndRef.current);
+  //       }
+  //     };
+  //   }
+  // }, [room, socket, sender?._id, recipient?._id, setMessages]);
+
   useEffect(() => {
     if (room) {
-      const draft = localStorage.getItem("draftMessage");
-      draft ? setMessage(draft) : setMessage("");
-
+      // const draft = localStorage.getItem("draftMessage");
+      // draft ? setMessage(draft) : setMessage("");
+  
       const formattedRoom = recipient?._id
         ? `${sender?._id}-${recipient?._id}`
         : publicName;
-
+  
       socket?.emit("getHistory", formattedRoom);
-
+  
       socket?.on("sendHistory", (messageData: Message[]) => {
         setMessages(messageData as Message[]);
       });
-
+  
       socket?.on(
         "deleteMessageResponse",
         ({ success, messageId, error, deletedBy, deletedByEveryone }: any) => {
@@ -128,11 +206,11 @@ const Home: React.FC = () => {
                 const isDeletedForEveryone = deletedByEveryone;
                 const isDeletedForSender =
                   deletedBy && deletedBy.includes(sender?._id);
-
+  
                 if (isDeletedForEveryone && isCurrentMessage) {
                   return false;
                 }
-
+  
                 return !isCurrentMessage || !isDeletedForSender;
               })
             );
@@ -141,16 +219,50 @@ const Home: React.FC = () => {
           }
         }
       );
-
+  
+      // Declare observer outside of the 'if' block so it can be referenced in both observe and unobserve
+      let observer: IntersectionObserver | null = null;
+  
+      if (chatEndRef.current) {
+        observer = new IntersectionObserver(
+          (entries) => {
+            const isAtBottom = entries[0].isIntersecting;
+  
+            if (isAtBottom && messages.length > 0) {
+              // Emit the 'seen' event for all messages that are not 'seen'
+              const unseenMessages = messages.filter(
+                (message) => message.status !== "seen"
+              );
+  
+              if (unseenMessages.length > 0) {
+                socket?.emit("markMessagesAsSeen", {
+                  messages: unseenMessages.map((msg) => msg._id),
+                  room,
+                  userId: sender?._id, // Current user marking messages as seen
+                });
+              }
+            }
+          },
+          { threshold: 1.0 } // Adjust threshold based on when the element is considered in view
+        );
+  
+        observer.observe(chatEndRef.current);
+      }
+  
       return () => {
         socket?.off("deleteMessageResponse");
         socket?.off("sendHistory");
-        // socket?.off("voice-message-response");
         socket?.off("newRoomResponse");
         socket?.off("message");
+        
+        // Safely unobserve if the observer exists
+        if (observer && chatEndRef.current) {
+          observer.unobserve(chatEndRef.current);
+        }
       };
     }
   }, [room, socket, sender?._id, recipient?._id, setMessages]);
+  
 
   socket?.on("message", (messageData: Message) => {
     setMessages((prevMessages) => {
@@ -230,7 +342,18 @@ const Home: React.FC = () => {
       );
     });
 
+    socket?.on("messageSeen", (data: any) => {
+      const { messages } = data;
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          messages.includes(msg._id) ? { ...msg, status: "seen" } : msg
+        )
+      );
+    });
+
     return () => {
+      socket?.off("messageSeen");
       socket?.off("voice-message-response", handleVoiceMessageResponse);
       socket?.off("fileUpload-respond");
       socket?.off("forwardMessageResponse");
@@ -353,6 +476,7 @@ const Home: React.FC = () => {
         replyMessage={replyMessage}
         setReplyMessage={setReplyMessage}
         rooms={rooms}
+        chatEndRef={chatEndRef}
       />
     </div>
   );

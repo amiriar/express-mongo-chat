@@ -11,6 +11,7 @@ export interface Message {
   timestamp?: Date | null;
   voiceUrl?: string;
   fileUrl?: string;
+  status: string;
   isSending: boolean;
   isEdited: boolean;
   isForwarded: boolean;

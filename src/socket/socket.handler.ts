@@ -36,8 +36,13 @@ export const handleSocketConnections = (io: Server) => {
       sendOfflineUsers(socket);
     });
 
-    socket.on("messageSeen", async (messageId) => {
-      await ChatMessageModel.updateOne({ _id: messageId }, { seen: true });
+    socket.on("markMessagesAsSeen", async ({ messages, room, userId }) => {
+      await ChatMessageModel.updateMany(
+        { _id: { $in: messages }, status: { $ne: "seen" } },
+        { $set: { status: "seen" } }
+      );
+
+      io.to(room).emit("messageSeen", { messages, userId });
     });
 
     socket.on("joinRoom", async (data) => {
@@ -98,14 +103,11 @@ export const handleSocketConnections = (io: Server) => {
         const newRoom = await RoomModel.findByIdAndUpdate(
           room._id,
           {
-            name: updatedRoom.roomName,
-            bio: updatedRoom.bio ? updatedRoom.bio : null,
+            ...(updatedRoom.roomName && { roomName: updatedRoom.roomName }),
+            ...(updatedRoom.bio && { bio: updatedRoom.bio }),
           },
           { new: true }
         );
-
-        console.log(newRoom);
-        
 
         if (!newRoom) {
           return socket.emit("roomEditError", { message: "Room not found" });
@@ -185,12 +187,12 @@ export const handleSocketConnections = (io: Server) => {
 
         let history = [];
 
-        const isForwardedMessage = await ChatMessageModel.exists({
-          room: roomName,
-          isForwarded: true,
-        });
+        // const isForwardedMessage = await ChatMessageModel.exists({
+        //   room: roomName,
+        //   isForwarded: true,
+        // });
 
-        if (isForwardedMessage) {
+        if (isPrivateChat) {
           history = await ChatMessageModel.find({
             room: roomName,
             isDeleted: false,
@@ -199,7 +201,7 @@ export const handleSocketConnections = (io: Server) => {
             .populate("sender", "username profile phoneNumber")
             .populate("recipient", "username profile phoneNumber")
             .sort({ timestamp: 1 });
-        } else if (isPrivateChat) {
+          // } else if (isPrivateChat) {
           const [senderId, recipientId] = ids;
           const isSaveMessage = senderId == recipientId;
           const senderObjectId = new mongoose.Types.ObjectId(senderId);
@@ -345,34 +347,46 @@ export const handleSocketConnections = (io: Server) => {
 
     socket.on("forwardMessage", async (messageData) => {
       try {
-        const { message, userTo, senderId } = messageData;
+        const { message, room, senderId, recipientId } = messageData;
+        // console.log(message, room, senderId, recipientId);
 
         if (message.replyTo) message.replyTo = message.replyTo._id;
 
         if (message?.recipient?.username) {
-          delete message.recipient.profile;
-          delete message.recipient.username;
-          delete message.recipient.phoneNumber;
+          delete message?.recipient?.profile;
+          delete message?.recipient?.username;
+          delete message?.recipient?.phoneNumber;
         }
 
-        if (message.timestamp) delete message.timestamp; // it will be made automaticlly
+        if (message?.sender?.username) {
+          delete message?.recipient?.profile;
+          delete message?.recipient?.username;
+          delete message?.recipient?.phoneNumber;
+        }
+
+        if (message.timestamp) delete message.timestamp;
 
         delete message._id;
 
-        // const room = userTo ? userTo : senderId + "-" + userTo;
-        const room = `${senderId}-${userTo}`;
+        let finalRoom;
 
-        message.room = room;
+        if (recipientId) {
+          finalRoom = `${senderId}-${recipientId}`;
+        } else {
+          finalRoom = room;
+        }
+
+        message.room = finalRoom;
 
         message.sender = senderId;
-        message.recipient = userTo;
+        message.recipient = room;
 
         message.isForwarded = true;
 
         const forwardedMessage = await ChatMessageModel.create(message);
-
         io.emit("forwardMessageResponse", forwardedMessage);
-        // io.to(room).emit("forwardMessageResponse", forwardedMessage);
+
+        // io.to(finalRoom).emit("forwardMessageResponse", forwardedMessage);
       } catch (error) {
         console.error("Error sending message:", error);
       }
@@ -553,7 +567,7 @@ export const handleSocketConnections = (io: Server) => {
             { isPublic: true },
             { participants: { $in: [User?._id?.toString()] } },
           ],
-        }).select("_id roomName isGroup createdAt participants");
+        }).select("_id roomName isGroup createdAt participants bio");
 
         userRooms.forEach((room: any) => {
           socket.join(room._id.toString());
