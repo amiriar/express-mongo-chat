@@ -13,7 +13,18 @@ export interface IRoom extends Document {
 const RoomSchema = new Schema<IRoom>({
   roomName: { type: String, required: true, maxlength: 15 },
   bio: { type: String, required: false, maxlength: 150 },
-  participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  // participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  participants: [
+    {
+      user: { type: Schema.Types.ObjectId, ref: "User" },
+      role: {
+        type: String,
+        enum: ["member", "admin", "owner"],
+        default: "member",
+      },
+      nickname: { type: String, maxlength: 20, required: false },
+    },
+  ],
   pinnedMessage: { type: Schema.Types.ObjectId, ref: "ChatMessage" },
   isGroup: { type: Boolean, default: false },
   isPublic: { type: Boolean, default: false },

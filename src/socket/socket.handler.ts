@@ -56,10 +56,16 @@ export const handleSocketConnections = (io: Server) => {
           { $addToSet: { participants: userId } }
         );
 
+        // const userRooms = await RoomModel.find({
+        //   $or: [
+        //     { isPublic: true },
+        //     { participants: { $in: [User?._id?.toString()] } },
+        //   ],
+        // }).select("_id roomName isGroup createdAt participants");
         const userRooms = await RoomModel.find({
           $or: [
             { isPublic: true },
-            { participants: { $in: [User?._id?.toString()] } },
+            { "participants.user": User?._id?.toString() },
           ],
         }).select("_id roomName isGroup createdAt participants");
 
@@ -71,9 +77,15 @@ export const handleSocketConnections = (io: Server) => {
       try {
         socket.leave(room);
 
+        // const currentRoom = await RoomModel.findOneAndUpdate(
+        //   { _id: room },
+        //   { $pull: { participants: sender } },
+        //   { new: true }
+        // );
+
         const currentRoom = await RoomModel.findOneAndUpdate(
           { _id: room },
-          { $pull: { participants: sender } },
+          { $pull: { participants: { user: sender } } },
           { new: true }
         );
 
@@ -84,10 +96,12 @@ export const handleSocketConnections = (io: Server) => {
           );
         }
 
-        const rooms = await RoomModel.find(
-          { participants: { $in: [sender] } },
-          {}
-        );
+        // const rooms = await RoomModel.find(
+        //   { participants: { $in: [sender] } },
+        //   {}
+        // );
+
+        const rooms = await RoomModel.find({ "participants.user": sender }, {});
 
         socket.emit("leftRoom", rooms);
       } catch (error: any) {
@@ -471,17 +485,31 @@ export const handleSocketConnections = (io: Server) => {
     socket.on("newRoom", async (data: any) => {
       const { roomName, senderId } = data;
 
+      // await RoomModel.create({
+      //   roomName,
+      //   participants: [senderId],
+      //   isGroup: true,
+      //   isPublic: false,
+      // });
+
       await RoomModel.create({
         roomName,
-        participants: [senderId],
+        participants: [{ user: senderId }],
         isGroup: true,
         isPublic: false,
       });
 
+      // const rooms = await RoomModel.find({
+      //   $or: [
+      //     { isPublic: true },
+      //     { participants: { $in: [User?._id?.toString()] } },
+      //   ],
+      // }).select("_id roomName isGroup createdAt participants");
+
       const rooms = await RoomModel.find({
         $or: [
           { isPublic: true },
-          { participants: { $in: [User?._id?.toString()] } },
+          { "participants.user": User?._id?.toString() },
         ],
       }).select("_id roomName isGroup createdAt participants");
 
@@ -543,9 +571,18 @@ export const handleSocketConnections = (io: Server) => {
         publicRooms.forEach(async (room: any) => {
           socket.join(room._id.toString());
 
+          // await RoomModel.updateOne(
+          //   { _id: room._id },9
+          //   { $addToSet: { participants: User?._id } }
+          // );
+
           await RoomModel.updateOne(
             { _id: room._id },
-            { $addToSet: { participants: User?._id } }
+            {
+              $addToSet: {
+                participants: { user: User?._id },
+              },
+            }
           );
 
           console.log(`User ${User?.username} joined ${room.roomName}`);
@@ -562,10 +599,17 @@ export const handleSocketConnections = (io: Server) => {
 
         // socket.emit("publicRooms", publicRooms);
 
+        // const userRooms = await RoomModel.find({
+        //   $or: [
+        //     { isPublic: true },
+        //     { participants: { $in: [User?._id?.toString()] } },
+        //   ],
+        // }).select("_id roomName isGroup createdAt participants bio");
+
         const userRooms = await RoomModel.find({
           $or: [
             { isPublic: true },
-            { participants: { $in: [User?._id?.toString()] } },
+            { "participants.user": User?._id }, 
           ],
         }).select("_id roomName isGroup createdAt participants bio");
 
